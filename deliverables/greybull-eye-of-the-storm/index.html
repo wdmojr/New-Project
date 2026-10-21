@@ -3,18 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Eye of the Storm</title>
+<title>Operation Hurricane</title>
 <style>
   html,body{margin:0;height:100%;background:#05080c;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
   canvas{display:block;width:100vw;height:100vh}
 </style>
 </head>
 <body>
-<canvas id="c" aria-label="Eye of the Storm: a Grey Bull Rescue hurricane mission game"></canvas>
+<canvas id="c" aria-label="Operation Hurricane: a Grey Bull Rescue hurricane mission game"></canvas>
 <script>
 'use strict';
 // ---------------------------------------------------------------------------
-// Eye of the Storm — Mission Ready concept prototype (dramatized, PG)
+// Operation Hurricane — Mission Ready concept prototype (dramatized, PG)
 // Virtual 960x540 canvas, letterboxed to the window.
 // ---------------------------------------------------------------------------
 const VW = 960, VH = 540;
@@ -260,7 +260,7 @@ function drawTitle(t) {
   drawRain(0.35);
   ctx.fillStyle = 'rgba(5,8,12,0.55)'; ctx.fillRect(0, 0, VW, VH);
   txt('MISSION READY  ·  GREY BULL RESCUE', VW / 2, 150, 15, ORANGE, 'center', 800);
-  txt('EYE OF THE STORM', VW / 2, 222, 64, '#f3f6f9', 'center', 900);
+  txt('OPERATION HURRICANE', VW / 2, 222, 60, '#f3f6f9', 'center', 900);
   txt('Hurricane storm surge has flooded Florida\'s Gulf Coast. 911 is overwhelmed. Families need help now.', VW / 2, 262, 17, '#b8c4d0', 'center', 500);
   button(VW / 2 - 120, 300, 240, 56, 'START MISSION', () => go('ops'), { size: 20 });
   txt('Arrows / WASD to fly   ·   Hold SPACE to lower the rescue basket   ·   M to mute', VW / 2, 392, 14, '#8a98a6', 'center', 500);
@@ -283,7 +283,7 @@ const SCRIPT = [
   { who: 'OLIVIA', text: "I'm activating the team. Bryan, you're up." },
   { who: 'BRYAN', text: "Copy, Olivia. Rolling in sixty. We'll stand up a forward base on high ground, get Starlink running and put the helo up." },
   { who: 'BRYAN', text: 'Helo crew takes the rooftops. Nobody gets left behind.' },
-  { who: 'OLIVIA', text: 'Operation EYE OF THE STORM is a go. Bring them home.' }
+  { who: 'OLIVIA', text: 'Operation HURRICANE is a go. Bring them home.' }
 ];
 let opsIdx = 0, opsT = 0;
 const opsChars = () => Math.floor(opsT * 48);
@@ -747,7 +747,7 @@ function drawHUD() {
   const h = F.heli;
   // status panel
   rr(10, 10, 210, 92, 8); ctx.fillStyle = 'rgba(6,10,15,0.72)'; ctx.fill();
-  txt('OP EYE OF THE STORM', 22, 30, 11, ORANGE, 'left', 800);
+  txt('OP HURRICANE', 22, 30, 11, ORANGE, 'left', 800);
   txt(fmtTime(F.t), 208, 30, 11, '#9fb3c6', 'right', 700);
   const fr = F.fuel / F.fuelMax;
   txt('FUEL', 22, 52, 11, '#9fb3c6', 'left', 700);
@@ -833,7 +833,7 @@ function drawStar(x, y, r, on) {
 function drawDebrief(t) {
   ctx.fillStyle = '#0a1118'; ctx.fillRect(0, 0, VW, VH);
   txt('MISSION COMPLETE', 60, 76, 40, '#f3f6f9', 'left', 900);
-  txt('OPERATION EYE OF THE STORM', 62, 102, 13, ORANGE, 'left', 800);
+  txt('OPERATION HURRICANE', 62, 102, 13, ORANGE, 'left', 800);
   const n = stars();
   for (let i = 0; i < 3; i++) drawStar(84 + i * 52, 150, 22, i < n && t > 0.3 + i * 0.3);
   const rows = [['People rescued', `${F ? F.rescued : 0} / ${survivors.length}`], ['Mission time', fmtTime(F ? F.t : 0)], ['Aborts', String(F ? F.aborts : 0)], ['Gusts weathered', String(F ? F.gusts : 0)], ['Loadout', picked.map(k => KIT.find(x => x.k === k).name).join(' + ')]];
