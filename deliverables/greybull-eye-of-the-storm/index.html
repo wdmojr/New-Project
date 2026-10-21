@@ -261,7 +261,7 @@ function drawTitle(t) {
   ctx.fillStyle = 'rgba(5,8,12,0.55)'; ctx.fillRect(0, 0, VW, VH);
   txt('MISSION READY  ·  GREY BULL RESCUE', VW / 2, 150, 15, ORANGE, 'center', 800);
   txt('EYE OF THE STORM', VW / 2, 222, 64, '#f3f6f9', 'center', 900);
-  txt('A Category 5 hurricane has cut Jamaica off from the world. Americans need to come home.', VW / 2, 262, 17, '#b8c4d0', 'center', 500);
+  txt('Hurricane storm surge has flooded Florida\'s Gulf Coast. 911 is overwhelmed. Families need help now.', VW / 2, 262, 17, '#b8c4d0', 'center', 500);
   button(VW / 2 - 120, 300, 240, 56, 'START MISSION', () => go('ops'), { size: 20 });
   txt('Arrows / WASD to fly   ·   Hold SPACE to lower the rescue basket   ·   M to mute', VW / 2, 392, 14, '#8a98a6', 'center', 500);
   txt('Concept prototype  ·  Dramatized from a real Grey Bull Rescue operation  ·  Not an official Grey Bull Rescue product', VW / 2, 520, 12, '#5f6d7a', 'center', 500);
@@ -270,18 +270,18 @@ function drawTitle(t) {
 // ------------------------------------------------------------ ops center ----
 const SPEAKERS = {
   SYS: { label: 'GREY BULL OPS CENTER', col: RED },
-  CALLER: { label: 'SARAH · CALLER, COLUMBUS OH', col: '#a9b6c3' },
+  CALLER: { label: 'SARAH · CALLER, OHIO', col: '#a9b6c3' },
   OLIVIA: { label: 'OLIVIA · OPERATIONS', col: TEAL },
   BRYAN: { label: 'BRYAN · TEAM LEAD', col: ORANGE }
 };
 const SCRIPT = [
   { who: 'SYS', text: 'INCOMING CALL. Grey Bull Rescue Operations Center, Tampa, Florida.' },
-  { who: 'CALLER', text: "Please, my mom and dad are in Montego Bay. The phones went dead last night and I don't know if they're okay." },
+  { who: 'CALLER', text: "Please, my mom and dad are on Siesta Key. The water is up to the second floor and 911 just keeps ringing." },
   { who: 'OLIVIA', text: "Sarah, we've got you. Give me Tom and Linda's address. We are going to find them." },
-  { who: 'OLIVIA', text: 'Ops floor, listen up. Hurricane Melissa made landfall in Jamaica as a Category 5. Power and phones are down island-wide and the airports are flooded.' },
-  { who: 'OLIVIA', text: 'Over 300 Americans are stranded across Montego Bay and Kingston. The families are calling in now.' },
+  { who: 'OLIVIA', text: "Ops floor, listen up. Hurricane Helene's storm surge is flooding the Gulf Coast from Tampa to Sarasota. Power is out and cell towers are down." },
+  { who: 'OLIVIA', text: "First responders are overwhelmed and can't reach some neighborhoods. Families are calling in now." },
   { who: 'OLIVIA', text: "I'm activating the team. Bryan, you're up." },
-  { who: 'BRYAN', text: "Copy, Olivia. Wheels up in sixty. We'll put the PC-12 down at Montego Bay, stand up a forward base and get Starlink running." },
+  { who: 'BRYAN', text: "Copy, Olivia. Rolling in sixty. We'll stand up a forward base on high ground, get Starlink running and put the helo up." },
   { who: 'BRYAN', text: 'Helo crew takes the rooftops. Nobody gets left behind.' },
   { who: 'OLIVIA', text: 'Operation EYE OF THE STORM is a go. Bring them home.' }
 ];
@@ -299,22 +299,22 @@ function drawOps(t) {
   // main screen: Caribbean map
   rr(270, 34, 420, 236, 6); ctx.fillStyle = '#0a2032'; ctx.fill(); ctx.strokeStyle = '#2a4a63'; ctx.lineWidth = 3; ctx.stroke();
   ctx.save(); rr(270, 34, 420, 236, 6); ctx.clip();
-  ctx.fillStyle = '#1d3b2f';
-  ctx.beginPath(); ctx.moveTo(300, 34); ctx.lineTo(352, 34); ctx.lineTo(356, 70); ctx.lineTo(348, 110); ctx.lineTo(336, 118); ctx.lineTo(326, 92); ctx.lineTo(316, 64); ctx.closePath(); ctx.fill(); // Florida
-  ctx.beginPath(); ctx.moveTo(330, 140); ctx.quadraticCurveTo(420, 120, 520, 158); ctx.lineTo(560, 176); ctx.quadraticCurveTo(470, 168, 400, 156); ctx.closePath(); ctx.fill(); // Cuba
-  ctx.beginPath(); ctx.ellipse(498, 212, 26, 9, 0, 0, Math.PI * 2); ctx.fill(); // Jamaica
-  ctx.beginPath(); ctx.moveTo(585, 172); ctx.lineTo(650, 168); ctx.lineTo(660, 190); ctx.lineTo(600, 196); ctx.closePath(); ctx.fill(); // Hispaniola
+  ctx.fillStyle = '#1d3b2f'; ctx.beginPath();
+  [[270, 60], [470, 58], [540, 66], [566, 84], [584, 130], [604, 184], [624, 236], [634, 270], [566, 270], [552, 240], [536, 206], [516, 176], [508, 150], [492, 118], [462, 96], [420, 90], [270, 92]]
+    .forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ctx.fill(); // Florida
   for (let k = 0; k < 4; k++) {
     ctx.strokeStyle = `rgba(229,83,75,${0.55 - k * 0.1})`; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(498, 212, 14 + k * 13, t * 2 + k * 1.6, t * 2 + k * 1.6 + 2.6); ctx.stroke();
+    ctx.beginPath(); ctx.arc(420, 176, 16 + k * 15, t * 2 + k * 1.6, t * 2 + k * 1.6 + 2.6); ctx.stroke();
   }
   for (let k = 0; k < 9; k++) {
-    const px = 478 + (k * 37) % 42, py = 206 + (k * 13) % 12, a = 0.5 + 0.5 * Math.sin(t * 4 + k);
+    const py = 140 + k * 9, px = 500 + (py - 140) * 0.35 + (k % 3) * 4, a = 0.5 + 0.5 * Math.sin(t * 4 + k);
     ctx.fillStyle = `rgba(246,162,60,${a})`; ctx.beginPath(); ctx.arc(px, py, 2.5, 0, Math.PI * 2); ctx.fill();
   }
+  ctx.fillStyle = TEAL; ctx.beginPath(); ctx.arc(512, 152, 4, 0, Math.PI * 2); ctx.fill();
+  txt('TAMPA', 520, 156, 11, TEAL, 'left', 800);
   ctx.restore();
-  txt('HURRICANE MELISSA · CAT 5 · LANDFALL JAMAICA', 282, 56, 12, '#ff8f87', 'left', 700);
-  txt('STRANDED AMERICANS: 312+', 282, 74, 12, ORANGE, 'left', 700);
+  txt('HURRICANE HELENE · STORM SURGE · GULF COAST, FL', 282, 56, 12, '#ff8f87', 'left', 700);
+  txt('CALLS FOR HELP: 312+', 282, 74, 12, ORANGE, 'left', 700);
   // left screen: inbound calls
   rr(40, 60, 200, 160, 6); ctx.fillStyle = '#0b1a26'; ctx.fill(); ctx.strokeStyle = '#2a4a63'; ctx.lineWidth = 2; ctx.stroke();
   txt('INBOUND FAMILY CALLS', 52, 82, 11, '#9fb3c6', 'left', 700);
@@ -324,7 +324,7 @@ function drawOps(t) {
   // right screen: team status
   rr(720, 60, 200, 160, 6); ctx.fillStyle = '#0b1a26'; ctx.fill(); ctx.strokeStyle = '#2a4a63'; ctx.lineWidth = 2; ctx.stroke();
   txt('TEAM STATUS', 732, 82, 11, '#9fb3c6', 'left', 700);
-  const rows = [['ADVANCE TEAM (12)', activated], ['PC-12 AIRCRAFT', activated], ['HELO CREW', opsIdx >= 7], ['STARLINK KITS', activated], ['MEDICS', activated]];
+  const rows = [['ADVANCE TEAM (12)', activated], ['HIGH-WATER TRUCKS', activated], ['HELO CREW', opsIdx >= 7], ['STARLINK KITS', activated], ['MEDICS', activated]];
   rows.forEach(([n, on], k) => {
     txt(n, 732, 108 + k * 22, 11, '#d5dee7', 'left', 600);
     txt(on ? 'ACTIVE' : 'STANDBY', 908, 108 + k * 22, 11, on ? '#5cd68a' : '#7d8b98', 'right', 800);
@@ -407,12 +407,12 @@ function drawDeploy(t) {
   ctx.strokeStyle = 'rgba(80,130,170,0.12)'; ctx.lineWidth = 1;
   for (let x = 0; x < VW; x += 60) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, VH); ctx.stroke(); }
   for (let y = 0; y < VH; y += 60) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(VW, y); ctx.stroke(); }
-  ctx.fillStyle = '#1d3b2f';
-  ctx.beginPath(); ctx.moveTo(250, 0); ctx.lineTo(380, 0); ctx.lineTo(392, 90); ctx.lineTo(372, 200); ctx.lineTo(350, 214); ctx.lineTo(330, 160); ctx.lineTo(300, 100); ctx.lineTo(268, 60); ctx.closePath(); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(360, 300); ctx.quadraticCurveTo(540, 250, 720, 330); ctx.lineTo(760, 356); ctx.quadraticCurveTo(580, 330, 430, 318); ctx.closePath(); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(620, 430, 56, 18, 0, 0, Math.PI * 2); ctx.fill();
-  for (let k = 0; k < 4; k++) { ctx.strokeStyle = `rgba(229,83,75,${0.5 - k * 0.1})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(620, 430, 26 + k * 22, t * 2 + k * 1.6, t * 2 + k * 1.6 + 2.6); ctx.stroke(); }
-  const A = { x: 312, y: 126 }, C = { x: 470, y: 230 }, B = { x: 588, y: 424 };
+  ctx.fillStyle = '#1d3b2f'; ctx.beginPath();
+  [[0, 40], [380, 30], [640, 36], [960, 24], [960, 120], [880, 170], [860, 260], [880, 380], [900, 540], [610, 540], [590, 480], [560, 400], [520, 330], [495, 270], [470, 200], [430, 140], [370, 110], [0, 120]]
+    .forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ctx.fill();
+  for (let k = 0; k < 4; k++) { ctx.strokeStyle = `rgba(229,83,75,${0.5 - k * 0.1})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(300, 330, 30 + k * 26, t * 2 + k * 1.6, t * 2 + k * 1.6 + 2.6); ctx.stroke(); }
+  txt('HURRICANE HELENE', 300, 336, 13, '#ff8f87', 'center', 800);
+  const A = { x: 500, y: 236 }, C = { x: 440, y: 290 }, B = { x: 510, y: 360 };
   const k = clamp(t / 4.2, 0, 1), e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
   const q = s => ({ x: (1 - s) * (1 - s) * A.x + 2 * (1 - s) * s * C.x + s * s * B.x, y: (1 - s) * (1 - s) * A.y + 2 * (1 - s) * s * C.y + s * s * B.y });
   ctx.setLineDash([8, 8]); ctx.strokeStyle = ORANGE; ctx.lineWidth = 2; ctx.beginPath();
@@ -421,9 +421,9 @@ function drawDeploy(t) {
   const p = q(e), p2 = q(Math.min(1, e + 0.01)), ang = Math.atan2(p2.y - p.y, p2.x - p.x);
   ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(ang); ctx.fillStyle = '#f3f6f9';
   ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(-8, -4); ctx.lineTo(-8, 4); ctx.closePath(); ctx.fill(); ctx.fillRect(-4, -11, 5, 22); ctx.restore();
-  ctx.fillStyle = TEAL; ctx.beginPath(); ctx.arc(A.x, A.y, 6, 0, Math.PI * 2); ctx.fill(); txt('TAMPA HQ', A.x - 12, A.y + 4, 13, TEAL, 'right', 800);
-  ctx.fillStyle = ORANGE; ctx.beginPath(); ctx.arc(B.x, B.y, 6, 0, Math.PI * 2); ctx.fill(); txt('MONTEGO BAY', B.x - 12, B.y - 12, 13, ORANGE, 'right', 800);
-  const steps = [[0, 'WHEELS UP: TAMPA'], [2.2, 'PC-12 LANDING ON A STORM-DAMAGED RUNWAY'], [4.4, has('starlink') ? 'FORWARD BASE UP · STARLINK ONLINE' : 'FORWARD BASE UP · COMMS LIMITED'], [5.6, 'HELO CREW: YOU ARE CLEARED']];
+  ctx.fillStyle = TEAL; ctx.beginPath(); ctx.arc(A.x, A.y, 6, 0, Math.PI * 2); ctx.fill(); txt('TAMPA HQ', A.x + 12, A.y + 4, 13, TEAL, 'left', 800);
+  ctx.fillStyle = ORANGE; ctx.beginPath(); ctx.arc(B.x, B.y, 6, 0, Math.PI * 2); ctx.fill(); txt('SIESTA KEY', B.x + 12, B.y + 4, 13, ORANGE, 'left', 800);
+  const steps = [[0, 'ROLLING OUT: TAMPA HQ'], [2.2, 'ROADS UNDER WATER · STAGING ON HIGH GROUND'], [4.4, has('starlink') ? 'FORWARD BASE UP · STARLINK ONLINE' : 'FORWARD BASE UP · COMMS LIMITED'], [5.6, 'HELO CREW: YOU ARE CLEARED']];
   steps.forEach(([at, s], i) => { if (t > at) txt(s, 40, 440 + i * 24, 15, i === steps.length - 1 ? ORANGE : '#d5dee7', 'left', 800); });
   txt('click to skip', VW - 20, VH - 16, 12, '#5d7186', 'right', 600);
 }
@@ -472,7 +472,7 @@ function initFly() {
     abortT: 0, abortMsg: '', jackpotT: 0, jackpotDone: false, unloadT: 0, walkers: [], floats: [],
     lowFuel: false, fullWarned: false, doneT: 0, endT: 0
   };
-  radio('OLIVIA', `Helo 1, Ops. ${survivors.length} Americans spotted on rooftops east of the base. Tom and Linda are on the first roof. Bring them home.`);
+  radio('OLIVIA', `Helo 1, Ops. ${survivors.length} people stranded on rooftops east of the base. Tom and Linda are on the first roof. Bring them home.`);
   radio('BRYAN', 'Copy. Lifting off. Watch the gusts out there.');
 }
 function radio(who, text) { F.msgs.push({ who, text }); }
@@ -538,7 +538,7 @@ function updFly(dt) {
         audio.tone(880, 0.15, 'triangle', 0.1);
         if (!F.cabin.length) {
           F.fullWarned = false;
-          if (F.rescued >= survivors.length) { radio('OLIVIA', "That's everyone. All Americans accounted for. Outstanding work, team."); F.endT = 0.01; }
+          if (F.rescued >= survivors.length) { radio('OLIVIA', "That's everyone. Every family accounted for. Outstanding work, team."); F.endT = 0.01; }
           else radio('OLIVIA', `Medics have them. ${F.rescued} of ${survivors.length} safe. ${survivors.length - F.rescued} still out there.`);
         }
       }
@@ -836,7 +836,7 @@ function drawDebrief(t) {
   txt('OPERATION EYE OF THE STORM', 62, 102, 13, ORANGE, 'left', 800);
   const n = stars();
   for (let i = 0; i < 3; i++) drawStar(84 + i * 52, 150, 22, i < n && t > 0.3 + i * 0.3);
-  const rows = [['Americans brought home', `${F ? F.rescued : 0} / ${survivors.length}`], ['Mission time', fmtTime(F ? F.t : 0)], ['Aborts', String(F ? F.aborts : 0)], ['Gusts weathered', String(F ? F.gusts : 0)], ['Loadout', picked.map(k => KIT.find(x => x.k === k).name).join(' + ')]];
+  const rows = [['People rescued', `${F ? F.rescued : 0} / ${survivors.length}`], ['Mission time', fmtTime(F ? F.t : 0)], ['Aborts', String(F ? F.aborts : 0)], ['Gusts weathered', String(F ? F.gusts : 0)], ['Loadout', picked.map(k => KIT.find(x => x.k === k).name).join(' + ')]];
   rows.forEach(([a, b], i) => { txt(a, 62, 210 + i * 30, 15, '#9fb3c6', 'left', 600); txt(b, 430, 210 + i * 30, 15, '#f3f6f9', 'right', 800); });
   rr(62, 362, 368, 72, 8); ctx.fillStyle = '#10202a'; ctx.fill(); ctx.strokeStyle = TEAL; ctx.lineWidth = 1.5; ctx.stroke();
   txt('OLIVIA', 76, 382, 11, TEAL, 'left', 800);
@@ -844,10 +844,10 @@ function drawDebrief(t) {
   // real story card
   rr(480, 40, 430, 380, 12); ctx.fillStyle = '#121c26'; ctx.fill(); ctx.strokeStyle = '#25374a'; ctx.lineWidth = 2; ctx.stroke();
   txt('THE REAL MISSION', 504, 72, 13, ORANGE, 'left', 900);
-  txt('Operation ISLAND CROSS · Jamaica, 2025', 504, 98, 18, '#f3f6f9', 'left', 800);
-  const story = 'In late October 2025, Category 5 Hurricane Melissa knocked out power, phones and airports across Jamaica, stranding more than 300 Americans. Grey Bull Rescue sent a 12-person advance team that landed a PC-12 on a storm-damaged runway, set up forward bases in Montego Bay and Kingston, restored Starlink comms, and flew 340+ Americans home on two evacuation flights. It was the team\'s 797th operation.';
+  txt('Hurricane Helene · Florida, 2024', 504, 98, 18, '#f3f6f9', 'left', 800);
+  const story = 'When Hurricane Helene\'s storm surge flooded Florida\'s Gulf Coast in September 2024, Grey Bull Rescue teams went where first responders couldn\'t reach. In South Tampa they waded through floodwater with inflatable kayaks to save a family, two babies and two dogs after saltwater flooding set their home on fire. They answered calls on Siesta Key, then shifted from rescue to recovery. The team has also responded to Hurricanes Ian and Milton.';
   drawWrapped(story, 504, 128, 384, 15, '#c3cfda', 22);
-  txt('Helicopter rooftop scenes are dramatized for this game.', 504, 400, 12, '#5f6d7a', 'left', 500);
+  txt('The helicopter hoist scenes are dramatized for this game.', 504, 400, 12, '#5f6d7a', 'left', 500);
   button(480, 444, 270, 56, 'FUND THE NEXT RESCUE', () => window.open('https://greybullrescue.org/fund-our-missions/', '_blank', 'noopener'), { size: 18 });
   button(762, 444, 148, 56, 'PLAY AGAIN', () => { picked = []; go('title'); }, { fill: '#24323f', col: '#f3f6f9', size: 16 });
   txt('Every real rescue is funded by donors like you.', 62, 470, 14, '#8a98a6', 'left', 500);
