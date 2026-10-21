@@ -1,0 +1,891 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Eye of the Storm</title>
+<style>
+  html,body{margin:0;height:100%;background:#05080c;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
+  canvas{display:block;width:100vw;height:100vh}
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="Eye of the Storm: a Grey Bull Rescue hurricane mission game"></canvas>
+<script>
+'use strict';
+// ---------------------------------------------------------------------------
+// Eye of the Storm — Mission Ready concept prototype (dramatized, PG)
+// Virtual 960x540 canvas, letterboxed to the window.
+// ---------------------------------------------------------------------------
+const VW = 960, VH = 540;
+const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+const ORANGE = '#f6a23c', TEAL = '#4fd1c5', RED = '#e5534b';
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+let dpr = 1, scale = 1, ox = 0, oy = 0;
+function resize() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width = innerWidth * dpr; cv.height = innerHeight * dpr;
+  scale = Math.min(innerWidth / VW, innerHeight / VH);
+  ox = (innerWidth - VW * scale) / 2; oy = (innerHeight - VH * scale) / 2;
+}
+addEventListener('resize', resize); resize();
+
+// ---------------------------------------------------------------- audio ----
+const audio = {
+  ctx: null, muted: false,
+  init() {
+    if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
+    try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+    const c = this.ctx;
+    this.master = c.createGain(); this.master.gain.value = this.muted ? 0 : 0.6; this.master.connect(c.destination);
+    const len = c.sampleRate * 2, b = c.createBuffer(1, len, c.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    this.noise = b;
+    // rotor: low noise chopped by a square LFO
+    const n = c.createBufferSource(); n.buffer = b; n.loop = true;
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 240;
+    const am = c.createGain(); am.gain.value = 0.5;
+    const lfo = c.createOscillator(); lfo.type = 'square'; lfo.frequency.value = 12;
+    const lg = c.createGain(); lg.gain.value = 0.5; lfo.connect(lg); lg.connect(am.gain);
+    this.rotor = c.createGain(); this.rotor.gain.value = 0;
+    n.connect(lp); lp.connect(am); am.connect(this.rotor); this.rotor.connect(this.master);
+    n.start(); lfo.start();
+    // rain hiss
+    const r = c.createBufferSource(); r.buffer = b; r.loop = true;
+    const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1600;
+    this.rain = c.createGain(); this.rain.gain.value = 0;
+    r.connect(hp); hp.connect(this.rain); this.rain.connect(this.master); r.start(0, 0.7);
+  },
+  level(name, v) { if (this.ctx && this[name]) this[name].gain.setTargetAtTime(v, this.ctx.currentTime, 0.25); },
+  tone(f, dur, type = 'sine', vol = 0.12, when = 0) {
+    if (!this.ctx) return;
+    const c = this.ctx, t = c.currentTime + when, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(this.master); o.start(t); o.stop(t + dur + 0.05);
+  },
+  beep() { this.tone(1400, 0.07, 'square', 0.04); this.tone(1800, 0.07, 'square', 0.04, 0.09); },
+  ring() { for (let i = 0; i < 2; i++) { this.tone(440, 0.4, 'sine', 0.07, i * 0.55); this.tone(480, 0.4, 'sine', 0.07, i * 0.55); } },
+  jackpot() { [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.3, 'triangle', 0.12, i * 0.1)); },
+  warn() { this.tone(660, 0.12, 'sawtooth', 0.05); this.tone(520, 0.12, 'sawtooth', 0.05, 0.15); },
+  thunder() {
+    if (!this.ctx) return;
+    const c = this.ctx, s = c.createBufferSource(), lp = c.createBiquadFilter(), g = c.createGain(), t = c.currentTime + 0.3;
+    s.buffer = this.noise; lp.type = 'lowpass'; lp.frequency.value = 160;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.8, t + 0.06); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.4);
+    s.connect(lp); lp.connect(g); g.connect(this.master); s.start(t); s.stop(t + 2.5);
+  },
+  toggle() { this.muted = !this.muted; if (this.master) this.master.gain.value = this.muted ? 0 : 0.6; }
+};
+
+// ---------------------------------------------------------------- input ----
+const keys = {};
+const pointers = new Map();
+let mouse = null, isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+function toV(e) { return { x: (e.clientX - ox) / scale, y: (e.clientY - oy) / scale }; }
+addEventListener('keydown', e => {
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
+  audio.init();
+  if (!keys[e.code]) { keys[e.code] = true; onPress(e.code); }
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; pointers.clear(); });
+cv.addEventListener('pointerdown', e => {
+  audio.init();
+  if (e.pointerType === 'touch') isTouch = true;
+  const p = toV(e); pointers.set(e.pointerId, p); mouse = p; onClick(p.x, p.y);
+});
+cv.addEventListener('pointermove', e => { const p = toV(e); mouse = p; if (pointers.has(e.pointerId)) pointers.set(e.pointerId, p); });
+['pointerup', 'pointercancel', 'pointerleave'].forEach(t => cv.addEventListener(t, e => pointers.delete(e.pointerId)));
+
+const TB = { // touch buttons (virtual coords)
+  up: { x: 92, y: 360, w: 68, h: 68 }, left: { x: 18, y: 434, w: 68, h: 68 },
+  down: { x: 92, y: 434, w: 68, h: 68 }, right: { x: 166, y: 434, w: 68, h: 68 },
+  hoist: { x: 808, y: 392, w: 120, h: 120 }
+};
+function held(name) {
+  const r = TB[name];
+  for (const p of pointers.values()) if (p.x > r.x && p.x < r.x + r.w && p.y > r.y && p.y < r.y + r.h) return true;
+  return false;
+}
+const inX = () => ((keys.ArrowRight || keys.KeyD || held('right')) ? 1 : 0) - ((keys.ArrowLeft || keys.KeyA || held('left')) ? 1 : 0);
+const inY = () => ((keys.ArrowDown || keys.KeyS || held('down')) ? 1 : 0) - ((keys.ArrowUp || keys.KeyW || held('up')) ? 1 : 0);
+const inHoist = () => !!(keys.Space || held('hoist'));
+
+// -------------------------------------------------------------- helpers ----
+function rr(x, y, w, h, r) {
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+function txt(s, x, y, size, col, align = 'left', weight = 600) {
+  ctx.font = `${weight} ${size}px ${FONT}`; ctx.fillStyle = col; ctx.textAlign = align; ctx.textBaseline = 'alphabetic'; ctx.fillText(s, x, y);
+}
+function wrap(s, maxW, size, weight = 500) {
+  ctx.font = `${weight} ${size}px ${FONT}`;
+  const out = []; let cur = '';
+  for (const w of s.split(' ')) { const t = cur ? cur + ' ' + w : w; if (ctx.measureText(t).width > maxW && cur) { out.push(cur); cur = w; } else cur = t; }
+  if (cur) out.push(cur); return out;
+}
+function drawWrapped(s, x, y, maxW, size, col, lh, chars = Infinity, weight = 500) {
+  const lines = wrap(s, maxW, size, weight); let rem = chars;
+  ctx.font = `${weight} ${size}px ${FONT}`; ctx.fillStyle = col; ctx.textAlign = 'left';
+  lines.forEach((l, i) => { if (rem <= 0) return; ctx.fillText(l.slice(0, rem), x, y + i * lh); rem -= l.length + 1; });
+  return lines.length;
+}
+let ui = [];
+function button(x, y, w, h, label, cb, o = {}) {
+  const { fill = ORANGE, col = '#14100a', size = 18, disabled = false } = o;
+  const hov = !disabled && mouse && mouse.x > x && mouse.x < x + w && mouse.y > y && mouse.y < y + h;
+  ctx.globalAlpha = disabled ? 0.35 : 1;
+  rr(x, y, w, h, 8); ctx.fillStyle = fill; ctx.fill();
+  if (hov) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); }
+  txt(label, x + w / 2, y + h / 2 + size * 0.36, size, col, 'center', 800);
+  ctx.globalAlpha = 1;
+  if (!disabled) ui.push({ x, y, w, h, cb });
+}
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const fmtTime = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+// ----------------------------------------------------------- scene mgmt ----
+let scene = 'title', sceneT = 0;
+function go(s) { scene = s; sceneT = 0; if (s === 'ops') { opsIdx = 0; opsT = 0; audio.ring(); } if (s === 'fly') initFly(); }
+
+function onPress(code) {
+  if (code === 'KeyM') { audio.toggle(); return; }
+  const adv = code === 'Space' || code === 'Enter';
+  if (scene === 'title' && adv) go('ops');
+  else if (scene === 'ops' && adv) advanceOps();
+  else if (scene === 'loadout') {
+    if (code === 'Digit1') toggleKit(0); if (code === 'Digit2') toggleKit(1); if (code === 'Digit3') toggleKit(2);
+    if (code === 'Enter' && picked.length === 2) go('deploy');
+  } else if (scene === 'deploy' && adv) go('fly');
+  else if (scene === 'debrief' && code === 'Enter') go('title');
+}
+function onClick(x, y) {
+  for (const b of ui) if (x > b.x && x < b.x + b.w && y > b.y && y < b.y + b.h) { b.cb(); return; }
+  if (scene === 'ops') advanceOps();
+  else if (scene === 'deploy' && sceneT > 0.5) go('fly');
+}
+
+// ---------------------------------------------------------- shared art ----
+const rain = [];
+for (let i = 0; i < 260; i++) rain.push({ x: Math.random() * VW, y: Math.random() * VH, l: 10 + Math.random() * 14, s: 520 + Math.random() * 360 });
+let windNow = 40;
+function updRain(dt) {
+  for (const r of rain) {
+    r.y += r.s * dt; r.x += windNow * 1.4 * dt;
+    if (r.y > VH) { r.y = -20 - Math.random() * 40; r.x = Math.random() * VW; }
+    if (r.x > VW + 20) r.x -= VW + 40; if (r.x < -20) r.x += VW + 40;
+  }
+}
+function drawRain(a) {
+  ctx.strokeStyle = `rgba(185,205,225,${a})`; ctx.lineWidth = 1; ctx.beginPath();
+  for (const r of rain) { const dx = windNow * 1.4 / r.s * r.l; ctx.moveTo(r.x, r.y); ctx.lineTo(r.x + dx, r.y + r.l); }
+  ctx.stroke();
+}
+const CLOUDS = [];
+for (let i = 0; i < 16; i++) CLOUDS.push({ x: Math.random() * 1400, y: 10 + Math.random() * 150, r: 50 + Math.random() * 90, d: 0.08 + Math.random() * 0.14 });
+function drawSky(cam, t) {
+  const g = ctx.createLinearGradient(0, 0, 0, VH);
+  g.addColorStop(0, '#121923'); g.addColorStop(0.55, '#283442'); g.addColorStop(1, '#394653');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
+  const W = VW + 400;
+  for (const c of CLOUDS) {
+    const x = ((c.x - cam * c.d + t * 60 * c.d) % W + W) % W - 200;
+    ctx.fillStyle = 'rgba(8,12,18,0.35)'; ctx.beginPath(); ctx.ellipse(x, c.y, c.r * 1.7, c.r * 0.55, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.fillStyle = '#1c2630'; ctx.beginPath(); ctx.moveTo(0, VH);
+  for (let x = 0; x <= VW; x += 16) { const wx = x + cam * 0.25; ctx.lineTo(x, 320 + Math.sin(wx * 0.004) * 34 + Math.sin(wx * 0.013) * 12); }
+  ctx.lineTo(VW, VH); ctx.fill();
+  ctx.fillStyle = '#232f39'; ctx.beginPath(); ctx.moveTo(0, VH);
+  for (let x = 0; x <= VW; x += 16) { const wx = x + cam * 0.5; ctx.lineTo(x, 385 + Math.sin(wx * 0.006 + 2) * 22 + Math.sin(wx * 0.02) * 6); }
+  ctx.lineTo(VW, VH); ctx.fill();
+}
+function drawHeli(x, y, face, tilt, t, doorOpen = true) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(tilt); ctx.scale(face, 1);
+  // tail boom + fin + tail rotor
+  ctx.fillStyle = '#39434d';
+  ctx.beginPath(); ctx.moveTo(-14, -8); ctx.lineTo(-70, -5); ctx.lineTo(-70, 1); ctx.lineTo(-14, 6); ctx.closePath(); ctx.fill();
+  ctx.fillRect(-76, -20, 8, 22);
+  ctx.strokeStyle = 'rgba(200,210,220,0.5)'; ctx.lineWidth = 2;
+  const ta = t * 50; ctx.beginPath(); ctx.moveTo(-72 + Math.cos(ta) * 11, -10 + Math.sin(ta) * 11); ctx.lineTo(-72 - Math.cos(ta) * 11, -10 - Math.sin(ta) * 11); ctx.stroke();
+  // body
+  ctx.fillStyle = '#4b5661'; ctx.beginPath(); ctx.ellipse(2, 0, 36, 16, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = ORANGE; ctx.fillRect(-30, 4, 58, 4);
+  // canopy
+  ctx.fillStyle = '#8fc6ec'; ctx.beginPath(); ctx.moveTo(18, -12); ctx.quadraticCurveTo(38, -8, 37, 2); ctx.lineTo(18, 2); ctx.closePath(); ctx.fill();
+  // door
+  if (doorOpen) { ctx.fillStyle = '#1a1f25'; ctx.fillRect(-12, -9, 20, 15); ctx.fillStyle = '#d9b48a'; ctx.beginPath(); ctx.arc(-2, -4, 3.2, 0, Math.PI * 2); ctx.fill(); }
+  // hoist arm
+  ctx.strokeStyle = '#222'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-4, -12); ctx.lineTo(-4, -16); ctx.lineTo(4, -16); ctx.stroke();
+  // skids
+  ctx.strokeStyle = '#20262c'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(-26, 17); ctx.lineTo(28, 17); ctx.moveTo(-14, 13); ctx.lineTo(-16, 17); ctx.moveTo(14, 13); ctx.lineTo(16, 17); ctx.stroke();
+  // mast + rotor
+  ctx.fillStyle = '#2b333b'; ctx.fillRect(-2, -22, 6, 8);
+  ctx.fillStyle = 'rgba(190,200,210,0.18)'; ctx.beginPath(); ctx.ellipse(1, -22, 62, 4, 0, 0, Math.PI * 2); ctx.fill();
+  const bl = Math.cos(t * 40) * 62; ctx.strokeStyle = 'rgba(30,35,40,0.85)'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(1 - bl, -22); ctx.lineTo(1 + bl, -22); ctx.stroke();
+  ctx.restore();
+}
+function drawPerson(x, y, shirt, t, phase, kid = false, wave = true) {
+  const s = kid ? 0.72 : 1;
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  ctx.strokeStyle = '#1b1b1b'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(-4, 0); ctx.lineTo(-2, -12); ctx.moveTo(4, 0); ctx.lineTo(2, -12); ctx.stroke();
+  ctx.fillStyle = shirt; rr(-6, -26, 12, 15, 3); ctx.fill();
+  const a = wave ? -2.2 + Math.sin(t * 7 + phase) * 0.6 : -0.3;
+  ctx.strokeStyle = shirt; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(4, -23); ctx.lineTo(4 + Math.cos(a) * 11, -23 + Math.sin(a) * 11); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-4, -23); ctx.lineTo(-9, -14); ctx.stroke();
+  ctx.fillStyle = '#c8956c'; ctx.beginPath(); ctx.arc(0, -31, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+function drawMute() {
+  const x = 924, y = 8;
+  rr(x, y, 28, 28, 6); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fill();
+  ctx.fillStyle = '#dfe6ee'; ctx.beginPath(); ctx.moveTo(x + 7, y + 11); ctx.lineTo(x + 11, y + 11); ctx.lineTo(x + 16, y + 6); ctx.lineTo(x + 16, y + 22); ctx.lineTo(x + 11, y + 17); ctx.lineTo(x + 7, y + 17); ctx.fill();
+  ctx.strokeStyle = audio.muted ? RED : '#dfe6ee'; ctx.lineWidth = 2; ctx.beginPath();
+  if (audio.muted) { ctx.moveTo(x + 19, y + 10); ctx.lineTo(x + 25, y + 18); ctx.moveTo(x + 25, y + 10); ctx.lineTo(x + 19, y + 18); }
+  else ctx.arc(x + 17, y + 14, 6, -0.9, 0.9);
+  ctx.stroke();
+  ui.push({ x, y, w: 28, h: 28, cb: () => audio.toggle() });
+}
+
+// ---------------------------------------------------------------- title ----
+function drawTitle(t) {
+  drawSky(t * 40, t);
+  drawHeli(((t * 90) % (VW + 300)) - 150, 150 + Math.sin(t * 1.3) * 10, 1, 0.12, t, false);
+  drawRain(0.35);
+  ctx.fillStyle = 'rgba(5,8,12,0.55)'; ctx.fillRect(0, 0, VW, VH);
+  txt('MISSION READY  ·  GREY BULL RESCUE', VW / 2, 150, 15, ORANGE, 'center', 800);
+  txt('EYE OF THE STORM', VW / 2, 222, 64, '#f3f6f9', 'center', 900);
+  txt('A Category 5 hurricane has cut Jamaica off from the world. Americans need to come home.', VW / 2, 262, 17, '#b8c4d0', 'center', 500);
+  button(VW / 2 - 120, 300, 240, 56, 'START MISSION', () => go('ops'), { size: 20 });
+  txt('Arrows / WASD to fly   ·   Hold SPACE to lower the rescue basket   ·   M to mute', VW / 2, 392, 14, '#8a98a6', 'center', 500);
+  txt('Concept prototype  ·  Dramatized from a real Grey Bull Rescue operation  ·  Not an official Grey Bull Rescue product', VW / 2, 520, 12, '#5f6d7a', 'center', 500);
+}
+
+// ------------------------------------------------------------ ops center ----
+const SPEAKERS = {
+  SYS: { label: 'GREY BULL OPS CENTER', col: RED },
+  CALLER: { label: 'SARAH · CALLER, COLUMBUS OH', col: '#a9b6c3' },
+  OLIVIA: { label: 'OLIVIA · OPERATIONS', col: TEAL },
+  BRYAN: { label: 'BRYAN · TEAM LEAD', col: ORANGE }
+};
+const SCRIPT = [
+  { who: 'SYS', text: 'INCOMING CALL. Grey Bull Rescue Operations Center, Tampa, Florida.' },
+  { who: 'CALLER', text: "Please, my mom and dad are in Montego Bay. The phones went dead last night and I don't know if they're okay." },
+  { who: 'OLIVIA', text: "Sarah, we've got you. Give me Tom and Linda's address. We are going to find them." },
+  { who: 'OLIVIA', text: 'Ops floor, listen up. Hurricane Melissa made landfall in Jamaica as a Category 5. Power and phones are down island-wide and the airports are flooded.' },
+  { who: 'OLIVIA', text: 'Over 300 Americans are stranded across Montego Bay and Kingston. The families are calling in now.' },
+  { who: 'OLIVIA', text: "I'm activating the team. Bryan, you're up." },
+  { who: 'BRYAN', text: "Copy, Olivia. Wheels up in sixty. We'll put the PC-12 down at Montego Bay, stand up a forward base and get Starlink running." },
+  { who: 'BRYAN', text: 'Helo crew takes the rooftops. Nobody gets left behind.' },
+  { who: 'OLIVIA', text: 'Operation EYE OF THE STORM is a go. Bring them home.' }
+];
+let opsIdx = 0, opsT = 0;
+const opsChars = () => Math.floor(opsT * 48);
+function advanceOps() {
+  if (opsChars() < SCRIPT[opsIdx].text.length) { opsT = 99; return; }
+  opsIdx++; opsT = 0;
+  if (opsIdx >= SCRIPT.length) go('loadout');
+}
+function drawOps(t) {
+  const g = ctx.createLinearGradient(0, 0, 0, VH); g.addColorStop(0, '#0c1520'); g.addColorStop(1, '#05090e');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
+  const activated = opsIdx >= 5;
+  // main screen: Caribbean map
+  rr(270, 34, 420, 236, 6); ctx.fillStyle = '#0a2032'; ctx.fill(); ctx.strokeStyle = '#2a4a63'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.save(); rr(270, 34, 420, 236, 6); ctx.clip();
+  ctx.fillStyle = '#1d3b2f';
+  ctx.beginPath(); ctx.moveTo(300, 34); ctx.lineTo(352, 34); ctx.lineTo(356, 70); ctx.lineTo(348, 110); ctx.lineTo(336, 118); ctx.lineTo(326, 92); ctx.lineTo(316, 64); ctx.closePath(); ctx.fill(); // Florida
+  ctx.beginPath(); ctx.moveTo(330, 140); ctx.quadraticCurveTo(420, 120, 520, 158); ctx.lineTo(560, 176); ctx.quadraticCurveTo(470, 168, 400, 156); ctx.closePath(); ctx.fill(); // Cuba
+  ctx.beginPath(); ctx.ellipse(498, 212, 26, 9, 0, 0, Math.PI * 2); ctx.fill(); // Jamaica
+  ctx.beginPath(); ctx.moveTo(585, 172); ctx.lineTo(650, 168); ctx.lineTo(660, 190); ctx.lineTo(600, 196); ctx.closePath(); ctx.fill(); // Hispaniola
+  for (let k = 0; k < 4; k++) {
+    ctx.strokeStyle = `rgba(229,83,75,${0.55 - k * 0.1})`; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(498, 212, 14 + k * 13, t * 2 + k * 1.6, t * 2 + k * 1.6 + 2.6); ctx.stroke();
+  }
+  for (let k = 0; k < 9; k++) {
+    const px = 478 + (k * 37) % 42, py = 206 + (k * 13) % 12, a = 0.5 + 0.5 * Math.sin(t * 4 + k);
+    ctx.fillStyle = `rgba(246,162,60,${a})`; ctx.beginPath(); ctx.arc(px, py, 2.5, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+  txt('HURRICANE MELISSA · CAT 5 · LANDFALL JAMAICA', 282, 56, 12, '#ff8f87', 'left', 700);
+  txt('STRANDED AMERICANS: 312+', 282, 74, 12, ORANGE, 'left', 700);
+  // left screen: inbound calls
+  rr(40, 60, 200, 160, 6); ctx.fillStyle = '#0b1a26'; ctx.fill(); ctx.strokeStyle = '#2a4a63'; ctx.lineWidth = 2; ctx.stroke();
+  txt('INBOUND FAMILY CALLS', 52, 82, 11, '#9fb3c6', 'left', 700);
+  const calls = Math.min(148, Math.floor(23 + t * 3));
+  txt(String(calls), 52, 130, 40, '#f3f6f9', 'left', 800);
+  for (let k = 0; k < 5; k++) { const w = 40 + ((k * 53 + Math.floor(t * 3) * 17) % 130); ctx.fillStyle = k === 0 ? RED : '#2c4a62'; ctx.fillRect(52, 148 + k * 13, w, 7); }
+  // right screen: team status
+  rr(720, 60, 200, 160, 6); ctx.fillStyle = '#0b1a26'; ctx.fill(); ctx.strokeStyle = '#2a4a63'; ctx.lineWidth = 2; ctx.stroke();
+  txt('TEAM STATUS', 732, 82, 11, '#9fb3c6', 'left', 700);
+  const rows = [['ADVANCE TEAM (12)', activated], ['PC-12 AIRCRAFT', activated], ['HELO CREW', opsIdx >= 7], ['STARLINK KITS', activated], ['MEDICS', activated]];
+  rows.forEach(([n, on], k) => {
+    txt(n, 732, 108 + k * 22, 11, '#d5dee7', 'left', 600);
+    txt(on ? 'ACTIVE' : 'STANDBY', 908, 108 + k * 22, 11, on ? '#5cd68a' : '#7d8b98', 'right', 800);
+  });
+  // desk + people
+  ctx.fillStyle = '#16212c'; ctx.fillRect(0, 312, VW, 70);
+  ctx.fillStyle = '#223140'; ctx.fillRect(0, 306, VW, 8);
+  // Olivia, seated with headset
+  const ox1 = 360;
+  ctx.fillStyle = '#0f1820'; rr(ox1 - 52, 258, 54, 40, 3); ctx.fill(); ctx.fillStyle = 'rgba(79,209,197,0.25)'; ctx.fillRect(ox1 - 48, 262, 46, 32);
+  ctx.fillStyle = '#2b3d4f'; rr(ox1 - 2, 262, 40, 52, 10); ctx.fill();
+  ctx.fillStyle = '#b27b57'; ctx.beginPath(); ctx.arc(ox1 + 18, 244, 15, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#2a1d16'; ctx.beginPath(); ctx.arc(ox1 + 20, 240, 16, Math.PI * 0.9, Math.PI * 2.1); ctx.fill(); ctx.fillRect(ox1 + 28, 238, 8, 26);
+  ctx.strokeStyle = TEAL; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(ox1 + 18, 244, 17, Math.PI * 1.1, Math.PI * 1.95); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(ox1 + 3, 248); ctx.lineTo(ox1 + 8, 256); ctx.stroke();
+  txt('OLIVIA', ox1 + 18, 300, 11, TEAL, 'center', 800);
+  // Bryan walks in once the team is activated
+  if (activated) {
+    const k = opsIdx === 5 ? clamp(opsT / 1.2, 0, 1) : 1;
+    const bx = 1000 - (1000 - 640) * (1 - Math.pow(1 - k, 3));
+    ctx.fillStyle = '#3b3f2e'; rr(bx - 22, 232, 44, 76, 10); ctx.fill();
+    ctx.fillStyle = '#2b2d22'; ctx.fillRect(bx - 18, 250, 36, 22);
+    ctx.fillStyle = '#c99872'; ctx.beginPath(); ctx.arc(bx, 214, 16, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#23262b'; ctx.beginPath(); ctx.arc(bx, 210, 17, Math.PI, Math.PI * 2); ctx.fill(); ctx.fillRect(bx - 4, 205, 26, 6);
+    txt('BRYAN', bx, 300, 11, ORANGE, 'center', 800);
+  }
+  // dialogue box
+  const line = SCRIPT[opsIdx], sp = SPEAKERS[line.who];
+  rr(30, 392, 900, 128, 10); ctx.fillStyle = 'rgba(6,10,15,0.94)'; ctx.fill(); ctx.strokeStyle = sp.col; ctx.lineWidth = 2; ctx.stroke();
+  txt(sp.label, 52, 420, 13, sp.col, 'left', 800);
+  drawWrapped(line.text, 52, 450, 850, 19, '#eef2f6', 26, opsChars());
+  if (opsChars() >= line.text.length && Math.sin(t * 6) > -0.3) txt('▶  click or SPACE', 910, 508, 12, '#7d8b98', 'right', 600);
+  if (line.who === 'SYS' && Math.sin(t * 10) > 0) { ctx.fillStyle = 'rgba(229,83,75,0.12)'; ctx.fillRect(0, 0, VW, VH); }
+}
+
+// --------------------------------------------------------------- loadout ----
+const KIT = [
+  { k: 'fuel', name: 'EXTRA FUEL', desc: 'A 50% bigger tank, so you can stay on station longer before heading back to base.' },
+  { k: 'starlink', name: 'STARLINK KIT', desc: 'Restores comms. Every stranded American shows up on your minimap.' },
+  { k: 'medic', name: 'FLIGHT MEDIC', desc: 'A medic rides in the door. Faster winch and faster loading at each rooftop.' }
+];
+let picked = [];
+const has = k => picked.includes(k);
+function toggleKit(i) {
+  const k = KIT[i].k;
+  if (has(k)) picked = picked.filter(p => p !== k); else { picked.push(k); if (picked.length > 2) picked.shift(); }
+  audio.beep();
+}
+function kitIcon(k, x, y) {
+  ctx.save(); ctx.translate(x, y); ctx.lineWidth = 4; ctx.strokeStyle = ORANGE; ctx.fillStyle = ORANGE;
+  if (k === 'fuel') { rr(-18, -22, 36, 46, 5); ctx.stroke(); ctx.fillRect(-10, -30, 14, 8); ctx.fillRect(-12, 0, 24, 18); }
+  if (k === 'starlink') { ctx.beginPath(); ctx.ellipse(0, -6, 24, 12, -0.4, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, 4); ctx.lineTo(0, 24); ctx.moveTo(-12, 24); ctx.lineTo(12, 24); ctx.stroke(); for (let a = 0; a < 3; a++) { ctx.beginPath(); ctx.arc(10, -20, 8 + a * 7, -1.4, -0.3); ctx.stroke(); } }
+  if (k === 'medic') { ctx.fillRect(-7, -22, 14, 44); ctx.fillRect(-22, -7, 44, 14); }
+  ctx.restore();
+}
+function drawLoadout(t) {
+  ctx.fillStyle = '#0a1118'; ctx.fillRect(0, 0, VW, VH);
+  txt('FORWARD STAGING · TAMPA', VW / 2, 54, 13, ORANGE, 'center', 800);
+  txt('Load the helo: pick 2', VW / 2, 96, 34, '#f3f6f9', 'center', 800);
+  txt('BRYAN: "We have room for two. Choose wisely."', VW / 2, 126, 16, '#b8c4d0', 'center', 500);
+  KIT.forEach((kit, i) => {
+    const x = 90 + i * 270, y = 160, w = 240, h = 240, on = has(kit.k);
+    const hov = mouse && mouse.x > x && mouse.x < x + w && mouse.y > y && mouse.y < y + h;
+    rr(x, y, w, h, 12); ctx.fillStyle = on ? '#1f2a20' : '#121c26'; ctx.fill();
+    ctx.strokeStyle = on ? ORANGE : (hov ? '#5d7186' : '#25374a'); ctx.lineWidth = on ? 3 : 2; ctx.stroke();
+    kitIcon(kit.k, x + w / 2, y + 60);
+    txt(kit.name, x + w / 2, y + 126, 18, '#f3f6f9', 'center', 800);
+    const lines = wrap(kit.desc, w - 36, 14, 500);
+    lines.forEach((l, j) => txt(l, x + w / 2, y + 154 + j * 20, 14, '#a9b6c3', 'center', 500));
+    txt(`[${i + 1}]`, x + 16, y + 26, 12, '#5d7186', 'left', 700);
+    if (on) { ctx.fillStyle = ORANGE; ctx.beginPath(); ctx.arc(x + w - 22, y + 22, 12, 0, Math.PI * 2); ctx.fill(); txt('✓', x + w - 22, y + 28, 15, '#14100a', 'center', 900); }
+    ui.push({ x, y, w, h, cb: () => toggleKit(i) });
+  });
+  button(VW / 2 - 110, 436, 220, 54, picked.length === 2 ? 'DEPLOY' : `PICK ${2 - picked.length} MORE`, () => go('deploy'), { size: 20, disabled: picked.length !== 2 });
+}
+
+// ---------------------------------------------------------------- deploy ----
+function drawDeploy(t) {
+  ctx.fillStyle = '#0b2131'; ctx.fillRect(0, 0, VW, VH);
+  ctx.strokeStyle = 'rgba(80,130,170,0.12)'; ctx.lineWidth = 1;
+  for (let x = 0; x < VW; x += 60) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, VH); ctx.stroke(); }
+  for (let y = 0; y < VH; y += 60) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(VW, y); ctx.stroke(); }
+  ctx.fillStyle = '#1d3b2f';
+  ctx.beginPath(); ctx.moveTo(250, 0); ctx.lineTo(380, 0); ctx.lineTo(392, 90); ctx.lineTo(372, 200); ctx.lineTo(350, 214); ctx.lineTo(330, 160); ctx.lineTo(300, 100); ctx.lineTo(268, 60); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(360, 300); ctx.quadraticCurveTo(540, 250, 720, 330); ctx.lineTo(760, 356); ctx.quadraticCurveTo(580, 330, 430, 318); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(620, 430, 56, 18, 0, 0, Math.PI * 2); ctx.fill();
+  for (let k = 0; k < 4; k++) { ctx.strokeStyle = `rgba(229,83,75,${0.5 - k * 0.1})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(620, 430, 26 + k * 22, t * 2 + k * 1.6, t * 2 + k * 1.6 + 2.6); ctx.stroke(); }
+  const A = { x: 312, y: 126 }, C = { x: 470, y: 230 }, B = { x: 588, y: 424 };
+  const k = clamp(t / 4.2, 0, 1), e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+  const q = s => ({ x: (1 - s) * (1 - s) * A.x + 2 * (1 - s) * s * C.x + s * s * B.x, y: (1 - s) * (1 - s) * A.y + 2 * (1 - s) * s * C.y + s * s * B.y });
+  ctx.setLineDash([8, 8]); ctx.strokeStyle = ORANGE; ctx.lineWidth = 2; ctx.beginPath();
+  for (let s = 0; s <= e; s += 0.02) { const p = q(s); s === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); }
+  ctx.stroke(); ctx.setLineDash([]);
+  const p = q(e), p2 = q(Math.min(1, e + 0.01)), ang = Math.atan2(p2.y - p.y, p2.x - p.x);
+  ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(ang); ctx.fillStyle = '#f3f6f9';
+  ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(-8, -4); ctx.lineTo(-8, 4); ctx.closePath(); ctx.fill(); ctx.fillRect(-4, -11, 5, 22); ctx.restore();
+  ctx.fillStyle = TEAL; ctx.beginPath(); ctx.arc(A.x, A.y, 6, 0, Math.PI * 2); ctx.fill(); txt('TAMPA HQ', A.x - 12, A.y + 4, 13, TEAL, 'right', 800);
+  ctx.fillStyle = ORANGE; ctx.beginPath(); ctx.arc(B.x, B.y, 6, 0, Math.PI * 2); ctx.fill(); txt('MONTEGO BAY', B.x - 12, B.y - 12, 13, ORANGE, 'right', 800);
+  const steps = [[0, 'WHEELS UP: TAMPA'], [2.2, 'PC-12 LANDING ON A STORM-DAMAGED RUNWAY'], [4.4, has('starlink') ? 'FORWARD BASE UP · STARLINK ONLINE' : 'FORWARD BASE UP · COMMS LIMITED'], [5.6, 'HELO CREW: YOU ARE CLEARED']];
+  steps.forEach(([at, s], i) => { if (t > at) txt(s, 40, 440 + i * 24, 15, i === steps.length - 1 ? ORANGE : '#d5dee7', 'left', 800); });
+  txt('click to skip', VW - 20, VH - 16, 12, '#5d7186', 'right', 600);
+}
+
+// ------------------------------------------------------------ fly world ----
+const WORLD_W = 4300, WATER_Y = 468, BASE_W = 470, GROUND_Y = 420;
+const HOUSES = [
+  { x: 820, y: 392, w: 170, c: '#8a7d6a' },
+  { x: 1080, y: 432, w: 110, c: '#6f7f95' },
+  { x: 1500, y: 350, w: 130, c: '#6f8a83' },
+  { x: 2250, y: 232, w: 230, c: '#86827a', hotel: true },
+  { x: 2880, y: 418, w: 130, c: '#6f7f95' },
+  { x: 3200, y: 378, w: 170, c: '#8e7a80' },
+  { x: 3720, y: 405, w: 150, c: '#6f8a83' }
+];
+const PALMS = [{ x: 1290, h: 150 }, { x: 2040, h: 170 }, { x: 3580, h: 160 }];
+const TENT = { x: 50, y: 372, w: 110, h: 48 };
+const SOLIDS = [
+  ...HOUSES.map(h => ({ x: h.x, y: h.y, w: h.w, h: 600 - h.y })),
+  ...PALMS.map(p => ({ x: p.x - 5, y: WATER_Y - p.h, w: 10, h: p.h })),
+  ...PALMS.map(p => ({ x: p.x - 36, y: WATER_Y - p.h - 14, w: 72, h: 22 })),
+  TENT
+];
+const BASKET_SOLIDS = [...SOLIDS, { x: -50, y: GROUND_Y, w: BASE_W + 50, h: 200 }];
+const SURV_DEF = [
+  { name: 'Tom', x: 868, house: 0, jackpot: true, shirt: '#e2574c' },
+  { name: 'Linda', x: 940, house: 0, jackpot: true, shirt: '#f2c14e' },
+  { name: 'Marcus', x: 1565, house: 2, shirt: '#4fa3e0' },
+  { name: 'Ana', x: 2300, house: 3, shirt: '#9b6be0' },
+  { name: 'Jay', x: 2420, house: 3, shirt: '#5cc48a' },
+  { name: 'Rosa', x: 3250, house: 5, shirt: '#e07bb0' },
+  { name: 'Leo, 8', x: 3318, house: 5, shirt: '#f29a3a', kid: true }
+];
+const CAP = 3;
+let F = null, survivors = [];
+
+function initFly() {
+  survivors = SURV_DEF.map((s, i) => ({ ...s, roofY: HOUSES[s.house].y, state: 'roof', phase: i * 1.7 }));
+  const fuelMax = has('fuel') ? 150 : 100;
+  F = {
+    t: 0, heli: { x: 260, y: GROUND_Y - 17, vx: 0, vy: 0, face: 1, landed: true },
+    rope: 0, basket: { x: 260, y: GROUND_Y - 9, vx: 0, vy: 0, load: null, grounded: false },
+    cabin: [], rescued: 0, fuel: fuelMax, fuelMax, aborts: 0, gusts: 0,
+    wind: 0, gust: 0, gustT: 9, gustDir: 1, gustWarned: false,
+    cam: 0, msgs: [], msg: null, msgT: 0, board: 0, flash: 0, bolt: null, lightT: 5,
+    abortT: 0, abortMsg: '', jackpotT: 0, jackpotDone: false, unloadT: 0, walkers: [], floats: [],
+    lowFuel: false, fullWarned: false, doneT: 0, endT: 0
+  };
+  radio('OLIVIA', `Helo 1, Ops. ${survivors.length} Americans spotted on rooftops east of the base. Tom and Linda are on the first roof. Bring them home.`);
+  radio('BRYAN', 'Copy. Lifting off. Watch the gusts out there.');
+}
+function radio(who, text) { F.msgs.push({ who, text }); }
+function abort(msg) {
+  if (F.abortT > 0 || F.endT > 0) return;
+  F.abortT = 2.4; F.abortMsg = msg; F.aborts++; audio.warn();
+}
+function resetToBase() {
+  const h = F.heli; h.x = 260; h.y = GROUND_Y - 17; h.vx = h.vy = 0; h.landed = true; h.face = 1;
+  F.rope = 0; const b = F.basket;
+  if (b.load) { b.load.state = 'roof'; b.load = null; }
+  b.x = h.x; b.y = h.y + 8; b.vx = b.vy = 0; F.board = 0;
+  F.fuel = Math.max(F.fuel, F.fuelMax * 0.5);
+}
+function overlaps(ax, ay, aw, ah, s) { return ax < s.x + s.w && ax + aw > s.x && ay < s.y + s.h && ay + ah > s.y; }
+
+function updFly(dt) {
+  F.t += dt;
+  const h = F.heli, b = F.basket;
+  // wind + gusts
+  const base = Math.sin(F.t * 0.23) * 55 + Math.sin(F.t * 0.71 + 1) * 22;
+  F.gustT -= dt;
+  if (F.gustT <= 1.8 && !F.gustWarned) { F.gustWarned = true; F.gustDir = Math.random() < 0.5 ? -1 : 1; audio.warn(); }
+  if (F.gustT <= 0) { F.gust = 2.4; F.gustT = 7 + Math.random() * 5; F.gustWarned = false; F.gusts++; }
+  let g = 0; if (F.gust > 0) { F.gust -= dt; g = F.gustDir * 175 * Math.sin(Math.PI * Math.max(0, F.gust) / 2.4); }
+  F.wind = base + g; windNow = F.wind;
+  // lightning
+  F.lightT -= dt;
+  if (F.lightT <= 0) {
+    F.lightT = 6 + Math.random() * 9; F.flash = 1; audio.thunder();
+    let x = 100 + Math.random() * (VW - 200), y = 0; F.bolt = [[x, y]];
+    while (y < 300) { y += 20 + Math.random() * 30; x += (Math.random() - 0.5) * 50; F.bolt.push([x, y]); }
+  }
+  F.flash = Math.max(0, F.flash - dt * 2.5);
+
+  // radio queue
+  if (!F.msg && F.msgs.length) { F.msg = F.msgs.shift(); F.msgT = 0; audio.beep(); }
+  if (F.msg) { F.msgT += dt; if (F.msgT > 4.2) F.msg = null; }
+  F.jackpotT = Math.max(0, F.jackpotT - dt);
+  for (const f of F.floats) { f.t += dt; f.y -= 24 * dt; }
+  F.floats = F.floats.filter(f => f.t < 1.6);
+  for (const w of F.walkers) w.x = Math.max(170, w.x - 46 * dt);
+  F.walkers = F.walkers.filter(w => w.x > 170);
+
+  if (F.endT > 0) { F.endT += dt; if (F.endT > 3.2) go('debrief'); }
+  if (F.abortT > 0) {
+    const before = F.abortT; F.abortT -= dt;
+    if (before > 1.2 && F.abortT <= 1.2) resetToBase();
+    updCam(dt); return;
+  }
+
+  const ix = F.endT > 0 ? 0 : inX(), iy = F.endT > 0 ? 0 : inY(), hoist = F.endT > 0 ? false : inHoist();
+  // helicopter
+  if (h.landed) {
+    h.vx = 0; h.vy = 0;
+    F.fuel = Math.min(F.fuelMax, F.fuel + 40 * dt);
+    if (F.fuel > F.fuelMax * 0.5) F.lowFuel = false;
+    if (F.cabin.length) {
+      F.unloadT += dt;
+      if (F.unloadT > 0.55) {
+        F.unloadT = 0; const s = F.cabin.shift(); s.state = 'safe'; F.rescued++;
+        F.walkers.push({ x: h.x - 20, s }); F.floats.push({ x: h.x, y: h.y - 40, t: 0, text: `${s.name} is safe` });
+        audio.tone(880, 0.15, 'triangle', 0.1);
+        if (!F.cabin.length) {
+          F.fullWarned = false;
+          if (F.rescued >= survivors.length) { radio('OLIVIA', "That's everyone. All Americans accounted for. Outstanding work, team."); F.endT = 0.01; }
+          else radio('OLIVIA', `Medics have them. ${F.rescued} of ${survivors.length} safe. ${survivors.length - F.rescued} still out there.`);
+        }
+      }
+    } else F.unloadT = 0;
+    if (iy < 0 && F.endT === 0) { h.landed = false; h.vy = -80; }
+  } else {
+    const ax = ix * 380 - h.vx * 1.3 + F.wind * 1.1;
+    const ay = iy * (iy < 0 ? 340 : 260) - h.vy * 2.2;
+    h.vx += ax * dt; h.vy += ay * dt;
+    const px = h.x, py = h.y;
+    h.x += h.vx * dt; h.y += h.vy * dt;
+    if (ix) h.face = ix;
+    F.fuel -= dt * (1.25 + 0.25 * Math.abs(ix));
+    if (h.y < 46) { h.y = 46; h.vy = Math.max(0, h.vy); }
+    if (h.x < 60) { h.x = 60; h.vx = Math.max(0, h.vx); }
+    if (h.x > WORLD_W - 60) { h.x = WORLD_W - 60; h.vx = Math.min(0, h.vx); }
+    const bottom = h.y + 17;
+    if (h.x < BASE_W && bottom >= GROUND_Y) {
+      if (h.vy < 190 && Math.abs(h.vx) < 170) { h.y = GROUND_Y - 17; h.landed = true; h.vx = h.vy = 0; audio.tone(220, 0.12, 'sine', 0.1); }
+      else abort('Hard landing! Ease it down onto the base.');
+    }
+    for (const s of SOLIDS) if (overlaps(h.x - 40, h.y - 14, 80, 31, s)) { abort('Too close! Keep rotor clearance from buildings and trees.'); break; }
+    if (bottom > WATER_Y - 4) abort('Too low over the floodwater!');
+    if (F.fuel <= 0) { F.fuel = 0; abort('Out of fuel! Watch the gauge and refuel at base.'); }
+    if (F.fuel < F.fuelMax * 0.25 && !F.lowFuel) { F.lowFuel = true; radio('BRYAN', 'Bingo fuel. Head back to base and top off.'); }
+  }
+
+  // hoist + basket
+  const hookX = h.x - h.face * 2, hookY = h.y + 16;
+  const winchUp = has('medic') ? 190 : 125, winchDown = 160, maxRope = 290;
+  if (hoist && !h.landed) F.rope = Math.min(maxRope, F.rope + winchDown * dt);
+  else F.rope = Math.max(0, F.rope - winchUp * dt);
+  if (F.rope < 4) {
+    b.x = hookX; b.y = hookY + 4; b.vx = h.vx; b.vy = h.vy; b.grounded = false;
+    if (b.load) {
+      const s = b.load; b.load = null; s.state = 'cabin'; F.cabin.push(s);
+      F.floats.push({ x: h.x, y: h.y - 30, t: 0, text: `${s.name} aboard` });
+      if (F.cabin.length >= CAP && !F.fullWarned) { F.fullWarned = true; radio('BRYAN', "Cabin's full. Heading back to base."); }
+      else if (survivors.every(v => v.state !== 'roof')) radio('BRYAN', 'Last one aboard. Taking them home.');
+    }
+  } else {
+    const pby = b.y;
+    b.vy += 620 * dt; b.vx += F.wind * 0.7 * dt;
+    b.vx *= Math.pow(0.55, dt); b.vy *= Math.pow(0.8, dt);
+    b.x += b.vx * dt; b.y += b.vy * dt;
+    const dx = b.x - hookX, dy = b.y - hookY, d = Math.hypot(dx, dy) || 1;
+    if (d > F.rope) {
+      const nx = dx / d, ny = dy / d;
+      b.x = hookX + nx * F.rope; b.y = hookY + ny * F.rope;
+      const vr = b.vx * nx + b.vy * ny, hv = h.vx * nx + h.vy * ny;
+      if (vr > hv) { b.vx -= (vr - hv) * nx; b.vy -= (vr - hv) * ny; }
+    }
+    b.grounded = false;
+    for (const s of BASKET_SOLIDS) {
+      if (b.x > s.x - 7 && b.x < s.x + s.w + 7 && b.y + 8 > s.y && b.y - 8 < s.y + s.h) {
+        if (pby + 8 <= s.y + 8) { b.y = s.y - 8; b.vy = Math.min(0, b.vy); b.vx *= Math.pow(0.004, dt); b.grounded = true; }
+        else { b.x = b.x < s.x + s.w / 2 ? s.x - 7 : s.x + s.w + 7; b.vx *= -0.3; }
+      }
+    }
+    if (b.y + 8 > WATER_Y + 2) { b.y = WATER_Y - 6; b.vy = Math.min(0, b.vy); b.vx *= Math.pow(0.2, dt); }
+    if (b.grounded) F.rope = Math.min(F.rope, Math.hypot(b.x - hookX, b.y - hookY) + 6);
+  }
+  // boarding
+  F.boardTarget = null;
+  if (b.grounded && !b.load && hoist) {
+    const sv = survivors.find(s => s.state === 'roof' && Math.abs(s.x - b.x) < 36 && Math.abs(s.roofY - (b.y + 8)) < 6);
+    if (sv) {
+      if (F.cabin.length >= CAP) { F.board = 0; F.cabinFullHint = true; }
+      else {
+        F.boardTarget = sv; F.board += dt * (has('medic') ? 1.7 : 1.0);
+        if (F.board >= 1) {
+          F.board = 0; b.load = sv; sv.state = 'basket'; audio.beep();
+          if (sv.jackpot && !F.jackpotDone) {
+            F.jackpotDone = true; F.jackpotT = 2.8; audio.jackpot();
+            F.msgs.unshift({ who: 'OLIVIA', text: "Copy jackpot! I'm calling Sarah right now." });
+            F.msgs.unshift({ who: 'BRYAN', text: `JACKPOT, JACKPOT, JACKPOT. We have ${sv.name}.` });
+            F.msg = null;
+          }
+        }
+      }
+    } else F.board = 0;
+  } else F.board = 0;
+  updCam(dt);
+}
+function updCam(dt) {
+  const h = F.heli;
+  const target = clamp(h.x - VW * 0.42 + h.vx * 0.5, 0, WORLD_W - VW);
+  F.cam += (target - F.cam) * Math.min(1, dt * 3);
+}
+
+function drawHouse(hs, t) {
+  const H = 600 - hs.y;
+  ctx.fillStyle = hs.c; ctx.fillRect(hs.x, hs.y, hs.w, H);
+  ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(hs.x + hs.w - 12, hs.y, 12, H);
+  ctx.fillStyle = '#d7d1c4'; ctx.fillRect(hs.x - 4, hs.y - 5, hs.w + 8, 6);
+  ctx.fillStyle = '#1b232b';
+  const cols = Math.floor((hs.w - 20) / 34);
+  for (let row = 0; hs.y + 22 + row * 44 < WATER_Y; row++) for (let c = 0; c < cols; c++) {
+    const wx = hs.x + 16 + c * 34, wy = hs.y + 22 + row * 44;
+    ctx.fillRect(wx, wy, 18, 24);
+    if ((c + row) % 3 === 0) { ctx.fillStyle = 'rgba(246,200,110,0.25)'; ctx.fillRect(wx, wy, 18, 24); ctx.fillStyle = '#1b232b'; }
+  }
+  if (hs.hotel) {
+    ctx.fillStyle = '#2b3138'; ctx.fillRect(hs.x + 150, hs.y - 34, 4, 30); ctx.fillRect(hs.x + 170, hs.y - 34, 4, 30);
+    ctx.save(); ctx.translate(hs.x + 162, hs.y - 40); ctx.rotate(0.12); ctx.fillStyle = '#34505f'; ctx.fillRect(-34, -14, 68, 22);
+    txt('HOTEL', 0, 3, 13, '#e6c87a', 'center', 900); ctx.restore();
+  }
+  ctx.fillStyle = '#5b4a38'; ctx.fillRect(hs.x + 10, hs.y - 9, 24, 4); ctx.fillRect(hs.x + hs.w - 40, hs.y - 7, 18, 3);
+}
+function drawPalm(p, t) {
+  const top = WATER_Y - p.h, bend = windNow * 0.12;
+  ctx.strokeStyle = '#4a3b2c'; ctx.lineWidth = 9; ctx.beginPath();
+  ctx.moveTo(p.x, WATER_Y + 10); ctx.quadraticCurveTo(p.x + bend * 0.3, top + p.h / 2, p.x + bend * 0.15, top); ctx.stroke();
+  ctx.strokeStyle = '#2f5a37'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+  for (let i = 0; i < 6; i++) {
+    const a = -Math.PI / 2 + (i - 2.5) * 0.55 + Math.sin(t * 5 + i) * 0.08, L = 40;
+    const ex = p.x + Math.cos(a) * L + bend * 0.6, ey = top + Math.sin(a) * L * 0.5 + 12;
+    ctx.beginPath(); ctx.moveTo(p.x, top); ctx.quadraticCurveTo((p.x + ex) / 2 + bend * 0.3, top - 8, ex, ey); ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
+}
+function drawBase(t) {
+  ctx.fillStyle = '#2f3b2c'; ctx.beginPath(); ctx.moveTo(-20, GROUND_Y); ctx.lineTo(BASE_W, GROUND_Y); ctx.quadraticCurveTo(BASE_W + 40, GROUND_Y + 10, 560, WATER_Y + 20); ctx.lineTo(-20, WATER_Y + 40); ctx.fill();
+  ctx.fillStyle = '#3d4a37'; ctx.fillRect(-20, GROUND_Y, BASE_W + 20, 5);
+  // helipad
+  ctx.fillStyle = '#4a4f55'; ctx.fillRect(195, GROUND_Y - 3, 130, 6);
+  ctx.fillStyle = '#e8e8e8'; ctx.fillRect(254, GROUND_Y - 2, 12, 3);
+  // tent
+  ctx.fillStyle = '#5a6142'; ctx.beginPath(); ctx.moveTo(TENT.x, GROUND_Y); ctx.lineTo(TENT.x + 14, TENT.y); ctx.lineTo(TENT.x + TENT.w - 14, TENT.y); ctx.lineTo(TENT.x + TENT.w, GROUND_Y); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.fillRect(TENT.x + 47, TENT.y + 8, 16, 5); ctx.fillRect(TENT.x + 52, TENT.y + 3, 6, 15);
+  txt('FORWARD BASE', TENT.x + TENT.w / 2, TENT.y + 34, 9, '#e8ead8', 'center', 800);
+  // starlink dish
+  if (has('starlink')) {
+    ctx.strokeStyle = '#ccc'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(380, GROUND_Y); ctx.lineTo(380, GROUND_Y - 16); ctx.stroke();
+    ctx.fillStyle = '#e8e8e8'; ctx.save(); ctx.translate(380, GROUND_Y - 18); ctx.rotate(-0.5); ctx.fillRect(-12, -2, 24, 4); ctx.restore();
+    if (Math.sin(t * 4) > 0) { ctx.fillStyle = '#5cd68a'; ctx.beginPath(); ctx.arc(388, GROUND_Y - 28, 2, 0, Math.PI * 2); ctx.fill(); }
+  }
+  // windsock
+  ctx.strokeStyle = '#bbb'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(440, GROUND_Y); ctx.lineTo(440, GROUND_Y - 40); ctx.stroke();
+  const ang = clamp(windNow / 160, -1, 1) * 1.3, dir = Math.sign(ang) || 1;
+  ctx.save(); ctx.translate(440, GROUND_Y - 38); ctx.rotate(dir > 0 ? Math.PI / 2 - Math.abs(ang) : -(Math.PI / 2 - Math.abs(ang))); ctx.translate(0, 0);
+  ctx.fillStyle = '#e5534b'; ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(5, 0); ctx.lineTo(3, 22); ctx.lineTo(-3, 22); ctx.fill(); ctx.restore();
+}
+function drawFly() {
+  const t = F.t, h = F.heli, b = F.basket;
+  drawSky(F.cam, t);
+  if (F.bolt && F.flash > 0.55) {
+    ctx.strokeStyle = 'rgba(235,240,255,0.9)'; ctx.lineWidth = 2; ctx.beginPath();
+    F.bolt.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke();
+  }
+  ctx.save(); ctx.translate(-Math.round(F.cam), 0);
+  drawBase(t);
+  for (const hs of HOUSES) if (hs.x + hs.w > F.cam - 50 && hs.x < F.cam + VW + 50) drawHouse(hs, t);
+  for (const p of PALMS) drawPalm(p, t);
+  // survivors on roofs
+  for (const s of survivors) {
+    if (s.state !== 'roof') continue;
+    drawPerson(s.x, s.roofY - 1, s.shirt, t, s.phase, s.kid, true);
+    if (Math.abs(s.x - h.x) < 320) { txt(s.name, s.x, s.roofY - 46, 12, '#fff', 'center', 700); }
+  }
+  for (const w of F.walkers) drawPerson(w.x, GROUND_Y, w.s.shirt, t * 3, 0, w.s.kid, false);
+  // rope + basket
+  const hookX = h.x - h.face * 2, hookY = h.y + 16;
+  if (F.rope >= 4) { ctx.strokeStyle = '#d9d9d9'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(hookX, hookY - 30); ctx.lineTo(b.x, b.y - 8); ctx.stroke(); }
+  if (F.rope >= 4 || b.load) {
+    if (b.load) drawPerson(b.x, b.y + 2, b.load.shirt, t, 0, b.load.kid, false);
+    ctx.fillStyle = '#e8572b'; ctx.beginPath(); ctx.moveTo(b.x - 13, b.y - 6); ctx.lineTo(b.x + 13, b.y - 6); ctx.lineTo(b.x + 10, b.y + 8); ctx.lineTo(b.x - 10, b.y + 8); ctx.fill();
+    ctx.strokeStyle = '#7a2a12'; ctx.lineWidth = 1; ctx.beginPath(); for (let k = -8; k <= 8; k += 6) { ctx.moveTo(b.x + k, b.y - 6); ctx.lineTo(b.x + k * 0.8, b.y + 8); } ctx.stroke();
+  }
+  if (F.boardTarget && F.board > 0) {
+    ctx.strokeStyle = '#5cd68a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(b.x, b.y - 30, 14, -Math.PI / 2, -Math.PI / 2 + F.board * Math.PI * 2); ctx.stroke();
+  }
+  const tilt = clamp(h.vx * 0.0012, -0.35, 0.35);
+  drawHeli(h.x, h.y, h.face, tilt, t, true);
+  // floodwater in front
+  const x0 = F.cam - 20, x1 = F.cam + VW + 20;
+  ctx.fillStyle = 'rgba(70,82,74,0.94)'; ctx.beginPath(); ctx.moveTo(x0, VH);
+  for (let x = Math.floor(x0 / 16) * 16; x <= x1; x += 16) ctx.lineTo(x, WATER_Y + Math.sin(x * 0.03 + t * 2.2) * 3 + Math.sin(x * 0.011 - t * 1.3) * 4);
+  ctx.lineTo(x1, VH); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(200,210,200,0.25)'; ctx.lineWidth = 2; ctx.beginPath();
+  for (let x = Math.floor(x0 / 16) * 16; x <= x1; x += 16) { const y = WATER_Y + 12 + Math.sin(x * 0.05 + t * 3) * 3; x === Math.floor(x0 / 16) * 16 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
+  ctx.stroke();
+  for (const f of F.floats) { ctx.globalAlpha = 1 - f.t / 1.6; txt(f.text, f.x, f.y, 14, '#5cd68a', 'center', 800); ctx.globalAlpha = 1; }
+  ctx.restore();
+  drawRain(0.4);
+  if (F.flash > 0) { ctx.fillStyle = `rgba(220,230,255,${F.flash * 0.35})`; ctx.fillRect(0, 0, VW, VH); }
+  drawHUD();
+  if (isTouch) drawTouch();
+  if (F.jackpotT > 0) {
+    const a = Math.min(1, F.jackpotT), s = 1 + Math.sin(F.t * 12) * 0.03;
+    ctx.save(); ctx.globalAlpha = a; ctx.translate(VW / 2, 230); ctx.scale(s, s);
+    rr(-300, -42, 600, 70, 10); ctx.fillStyle = 'rgba(10,14,20,0.85)'; ctx.fill(); ctx.strokeStyle = ORANGE; ctx.lineWidth = 3; ctx.stroke();
+    txt('JACKPOT · JACKPOT · JACKPOT', 0, 6, 34, ORANGE, 'center', 900); ctx.restore();
+  }
+  if (F.abortT > 0) {
+    const a = F.abortT > 1.2 ? (2.4 - F.abortT) / 1.2 : F.abortT / 1.2;
+    ctx.fillStyle = `rgba(0,0,0,${clamp(a, 0, 1) * 0.92})`; ctx.fillRect(0, 0, VW, VH);
+    ctx.globalAlpha = clamp(a * 1.5, 0, 1);
+    txt('ABORT · REGROUP AT BASE', VW / 2, 250, 32, RED, 'center', 900);
+    txt(F.abortMsg, VW / 2, 286, 17, '#d5dee7', 'center', 500);
+    txt('Nobody is hurt. The crew resets at the forward base.', VW / 2, 314, 14, '#8a98a6', 'center', 500);
+    ctx.globalAlpha = 1;
+  }
+}
+function drawHUD() {
+  const h = F.heli;
+  // status panel
+  rr(10, 10, 210, 92, 8); ctx.fillStyle = 'rgba(6,10,15,0.72)'; ctx.fill();
+  txt('OP EYE OF THE STORM', 22, 30, 11, ORANGE, 'left', 800);
+  txt(fmtTime(F.t), 208, 30, 11, '#9fb3c6', 'right', 700);
+  const fr = F.fuel / F.fuelMax;
+  txt('FUEL', 22, 52, 11, '#9fb3c6', 'left', 700);
+  ctx.fillStyle = '#1e2a35'; ctx.fillRect(62, 43, 146, 10);
+  ctx.fillStyle = fr > 0.5 ? '#5cd68a' : fr > 0.25 ? '#e6c14e' : (Math.sin(F.t * 10) > 0 ? RED : '#7a2a26'); ctx.fillRect(62, 43, 146 * clamp(fr, 0, 1), 10);
+  txt('SAFE', 22, 74, 11, '#9fb3c6', 'left', 700); txt(`${F.rescued} / ${survivors.length}`, 62, 74, 13, '#f3f6f9', 'left', 800);
+  txt('CABIN', 120, 74, 11, '#9fb3c6', 'left', 700);
+  for (let i = 0; i < CAP; i++) { ctx.fillStyle = i < F.cabin.length ? ORANGE : '#2a3a48'; ctx.beginPath(); ctx.arc(170 + i * 16, 70, 6, 0, Math.PI * 2); ctx.fill(); }
+  txt(`ROPE ${Math.round(F.rope / 3)} ft`, 22, 94, 11, '#9fb3c6', 'left', 700);
+  // minimap
+  const mx = 300, mw = 360, my = 12;
+  rr(mx - 8, my - 4, mw + 16, 30, 6); ctx.fillStyle = 'rgba(6,10,15,0.72)'; ctx.fill();
+  ctx.fillStyle = '#2b3b48'; ctx.fillRect(mx, my + 12, mw, 3);
+  ctx.fillStyle = TEAL; ctx.fillRect(mx, my + 8, BASE_W / WORLD_W * mw, 10);
+  if (has('starlink')) for (const s of survivors) if (s.state === 'roof') { ctx.fillStyle = ORANGE; ctx.beginPath(); ctx.arc(mx + s.x / WORLD_W * mw, my + 13, 3.5, 0, Math.PI * 2); ctx.fill(); }
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(mx + h.x / WORLD_W * mw, my + 13, 4.5, 0, Math.PI * 2); ctx.fill();
+  if (!has('starlink')) txt('STARLINK OFFLINE · SEARCH EAST', mx + mw / 2, my + 9, 9, '#7d8b98', 'center', 700);
+  // wind
+  rr(752, 10, 164, 52, 8); ctx.fillStyle = 'rgba(6,10,15,0.72)'; ctx.fill();
+  txt('WIND', 764, 30, 11, '#9fb3c6', 'left', 700);
+  txt(`${Math.round(Math.abs(F.wind) * 0.6)} kt`, 904, 30, 13, Math.abs(F.wind) > 120 ? RED : '#f3f6f9', 'right', 800);
+  const L = clamp(F.wind / 230, -1, 1) * 62, cx = 834, cy = 47;
+  ctx.strokeStyle = Math.abs(F.wind) > 120 ? RED : '#dfe6ee'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(cx - L, cy); ctx.lineTo(cx + L, cy); ctx.stroke();
+  const sd = Math.sign(L) || 1; ctx.beginPath(); ctx.moveTo(cx + L, cy); ctx.lineTo(cx + L - sd * 7, cy - 5); ctx.moveTo(cx + L, cy); ctx.lineTo(cx + L - sd * 7, cy + 5); ctx.stroke();
+  if (F.gustWarned && Math.sin(F.t * 14) > -0.2) {
+    rr(752, 66, 164, 24, 6); ctx.fillStyle = 'rgba(229,83,75,0.85)'; ctx.fill();
+    txt(`GUST INCOMING ${F.gustDir > 0 ? '→' : '←'}`, 834, 83, 12, '#fff', 'center', 900);
+  }
+  drawMute();
+  // radio
+  if (F.msg) {
+    const sp = SPEAKERS[F.msg.who], a = Math.min(1, F.msgT * 4, (4.2 - F.msgT) * 3);
+    ctx.globalAlpha = clamp(a, 0, 1);
+    rr(250, 48, 460, 64, 8); ctx.fillStyle = 'rgba(6,10,15,0.85)'; ctx.fill(); ctx.strokeStyle = sp.col; ctx.lineWidth = 2; ctx.stroke();
+    txt('◉ ' + sp.label, 264, 66, 11, sp.col, 'left', 800);
+    drawWrapped(F.msg.text, 264, 86, 432, 14, '#eef2f6', 18, Math.floor(F.msgT * 70));
+    ctx.globalAlpha = 1;
+  }
+  // context hint
+  let hint = '';
+  const near = survivors.find(s => s.state === 'roof' && Math.abs(s.x - h.x) < 110);
+  if (F.endT > 0) hint = '';
+  else if (h.landed && F.cabin.length) hint = 'Unloading. Medics are taking over.';
+  else if (h.landed) hint = F.rescued ? 'Refueling. Press ↑ to lift off.' : 'Press ↑ to lift off. Fly right toward the rooftops.';
+  else if (F.basket.load) hint = 'Got them! Release SPACE to winch up.';
+  else if (F.cabinFullHint && F.cabin.length >= CAP) hint = 'Cabin full. Fly back to the forward base and land.';
+  else if (F.boardTarget) hint = 'Hold steady... loading the basket.';
+  else if (F.cabin.length >= CAP) hint = 'Cabin full. Fly back to the forward base and land.';
+  else if (near && F.rope < 10) hint = `Hover over ${near.name} and hold SPACE to lower the basket.`;
+  else if (near) hint = 'Set the basket down right next to them. Keep holding SPACE.';
+  else if (F.lowFuel) hint = 'Low fuel. Return to base.';
+  F.cabinFullHint = false;
+  if (hint) {
+    ctx.font = `700 15px ${FONT}`; const w = ctx.measureText(hint).width + 32;
+    rr(VW / 2 - w / 2, 498, w, 30, 15); ctx.fillStyle = 'rgba(6,10,15,0.75)'; ctx.fill();
+    txt(hint, VW / 2, 518, 15, '#f3f6f9', 'center', 700);
+  }
+}
+function drawTouch() {
+  const arrows = { up: '▲', left: '◀', down: '▼', right: '▶' };
+  for (const k of ['up', 'left', 'down', 'right']) {
+    const r = TB[k]; rr(r.x, r.y, r.w, r.h, 12); ctx.fillStyle = held(k) ? 'rgba(246,162,60,0.5)' : 'rgba(255,255,255,0.12)'; ctx.fill();
+    txt(arrows[k], r.x + r.w / 2, r.y + r.h / 2 + 9, 26, '#fff', 'center', 700);
+  }
+  const r = TB.hoist; ctx.beginPath(); ctx.arc(r.x + r.w / 2, r.y + r.h / 2, r.w / 2, 0, Math.PI * 2);
+  ctx.fillStyle = held('hoist') ? 'rgba(246,162,60,0.7)' : 'rgba(246,162,60,0.28)'; ctx.fill();
+  txt('HOIST', r.x + r.w / 2, r.y + r.h / 2 + 7, 18, '#fff', 'center', 900);
+}
+
+// --------------------------------------------------------------- debrief ----
+function stars() {
+  if (!F) return 1;
+  const tm = F.t;
+  if (tm <= 210 && F.aborts === 0) return 3;
+  if (tm <= 330 && F.aborts <= 1) return 2;
+  return 1;
+}
+function drawStar(x, y, r, on) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rad = i % 2 ? r * 0.45 : r; ctx.lineTo(x + Math.cos(a) * rad, y + Math.sin(a) * rad); }
+  ctx.closePath(); ctx.fillStyle = on ? ORANGE : '#24323f'; ctx.fill();
+}
+function drawDebrief(t) {
+  ctx.fillStyle = '#0a1118'; ctx.fillRect(0, 0, VW, VH);
+  txt('MISSION COMPLETE', 60, 76, 40, '#f3f6f9', 'left', 900);
+  txt('OPERATION EYE OF THE STORM', 62, 102, 13, ORANGE, 'left', 800);
+  const n = stars();
+  for (let i = 0; i < 3; i++) drawStar(84 + i * 52, 150, 22, i < n && t > 0.3 + i * 0.3);
+  const rows = [['Americans brought home', `${F ? F.rescued : 0} / ${survivors.length}`], ['Mission time', fmtTime(F ? F.t : 0)], ['Aborts', String(F ? F.aborts : 0)], ['Gusts weathered', String(F ? F.gusts : 0)], ['Loadout', picked.map(k => KIT.find(x => x.k === k).name).join(' + ')]];
+  rows.forEach(([a, b], i) => { txt(a, 62, 210 + i * 30, 15, '#9fb3c6', 'left', 600); txt(b, 430, 210 + i * 30, 15, '#f3f6f9', 'right', 800); });
+  rr(62, 362, 368, 72, 8); ctx.fillStyle = '#10202a'; ctx.fill(); ctx.strokeStyle = TEAL; ctx.lineWidth = 1.5; ctx.stroke();
+  txt('OLIVIA', 76, 382, 11, TEAL, 'left', 800);
+  drawWrapped('"Sarah just heard her parents\' voices. That\'s why we do this."', 76, 403, 340, 14, '#eef2f6', 19);
+  // real story card
+  rr(480, 40, 430, 380, 12); ctx.fillStyle = '#121c26'; ctx.fill(); ctx.strokeStyle = '#25374a'; ctx.lineWidth = 2; ctx.stroke();
+  txt('THE REAL MISSION', 504, 72, 13, ORANGE, 'left', 900);
+  txt('Operation ISLAND CROSS · Jamaica, 2025', 504, 98, 18, '#f3f6f9', 'left', 800);
+  const story = 'In late October 2025, Category 5 Hurricane Melissa knocked out power, phones and airports across Jamaica, stranding more than 300 Americans. Grey Bull Rescue sent a 12-person advance team that landed a PC-12 on a storm-damaged runway, set up forward bases in Montego Bay and Kingston, restored Starlink comms, and flew 340+ Americans home on two evacuation flights. It was the team\'s 797th operation.';
+  drawWrapped(story, 504, 128, 384, 15, '#c3cfda', 22);
+  txt('Helicopter rooftop scenes are dramatized for this game.', 504, 400, 12, '#5f6d7a', 'left', 500);
+  button(480, 444, 270, 56, 'FUND THE NEXT RESCUE', () => window.open('https://greybullrescue.org/fund-our-missions/', '_blank', 'noopener'), { size: 18 });
+  button(762, 444, 148, 56, 'PLAY AGAIN', () => { picked = []; go('title'); }, { fill: '#24323f', col: '#f3f6f9', size: 16 });
+  txt('Every real rescue is funded by donors like you.', 62, 470, 14, '#8a98a6', 'left', 500);
+}
+
+// ------------------------------------------------------------------ loop ----
+function update(dt) {
+  sceneT += dt;
+  if (scene === 'fly') updFly(dt);
+  else windNow = 45 + Math.sin(sceneT * 0.5) * 20;
+  if (scene === 'ops') opsT += dt;
+  if (scene === 'deploy' && sceneT > 7) go('fly');
+  updRain(dt);
+  const flying = scene === 'fly' && F && !F.heli.landed;
+  audio.level('rotor', scene === 'fly' ? (flying ? 0.32 : 0.14) : 0);
+  audio.level('rain', scene === 'fly' ? 0.06 : scene === 'title' ? 0.05 : scene === 'ops' ? 0.015 : 0.01);
+}
+function render() {
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#05080c'; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * ox, dpr * oy);
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, VW, VH); ctx.clip();
+  ui = [];
+  if (scene === 'title') { drawTitle(sceneT); drawMute(); }
+  else if (scene === 'ops') { drawOps(sceneT); drawMute(); }
+  else if (scene === 'loadout') { drawLoadout(sceneT); drawMute(); }
+  else if (scene === 'deploy') { drawDeploy(sceneT); drawMute(); }
+  else if (scene === 'fly') drawFly();
+  else if (scene === 'debrief') { drawDebrief(sceneT); drawMute(); }
+  ctx.restore();
+}
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  update(dt); render(); requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+// test hook
+window.__game = { go, get F() { return F; }, get scene() { return scene; }, get survivors() { return survivors; }, setPicked(p) { picked = p; }, update, keys };
+</script>
+</body>
+</html>
