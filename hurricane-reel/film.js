@@ -10,35 +10,34 @@ const DISPLAY = 'Display', UI = 'UI';
 
 // Every accent: [beat, label, sfx, opts]. sfx.mjs voices them; the score carries the music hits.
 const HITS = [
-  [2, 'punch line lands', 'thud', { pitch: 'D2' }],
-  [6, 'stamp line 1', 'tick'],
-  [6.75, 'stamp line 2', 'tick'],
-  [7.5, 'stamp line 3', 'tick'],
-  [9, 'whip to the call', 'whoosh', { len: 0.45, from: 400, to: 2600 }],
-  [11.5, 'ANSWER', 'click'],
-  [16, 'super 911', 'pop', { pitch: 'D5' }],
-  [16.5, "super CAN'T REACH THEM", 'pop', { pitch: 'A4' }],
-  [21, 'to Bryan', 'whoosh', { len: 0.4, from: 2400, to: 500 }],
-  [26, 'the choice', 'tick'],
-  [31, "I'M IN", 'click'],
-  [32, 'DROP: title', 'impact'],
-  [34, 'title wipes', 'whoosh', { len: 0.4, from: 600, to: 3000 }],
-  [36, 'whip to cruise', 'whoosh', { len: 0.4, from: 3000, to: 600, pan: 0.3 }],
-  [36.2, '15 SOULS', 'pop', { pitch: 'D5' }],
-  [36.75, '7 MINUTES', 'pop', { pitch: 'F5' }],
-  [38.4, 'the surge', 'thud', { pitch: 'D2' }],
-  [41, 'hoist', 'click'],
-  [44, 'debrief', 'whoosh', { len: 0.45, from: 500, to: 2800 }],
-  [46.2, 'end card', 'thud', { pitch: 'D2' }],
+  [1.6, 'ANSWER', 'click'],
+  [2, 'punch to Olivia', 'whoosh', { len: 0.4, from: 400, to: 2600 }],
+  [2.3, 'super OLIVIA', 'pop', { pitch: 'D5' }],
+  [7.4, 'to Bryan', 'whoosh', { len: 0.4, from: 2400, to: 500 }],
+  [7.8, 'super BRYAN', 'pop', { pitch: 'D5' }],
+  [11, 'the choice', 'tick'],
+  [12.75, "I'M IN", 'click'],
+  [13, 'DROP: you deploy', 'impact'],
+  [16.3, 'title', 'whoosh', { len: 0.4, from: 600, to: 3000 }],
+  [19.5, 'whip to spotted', 'whoosh', { len: 0.4, from: 3000, to: 600, pan: 0.3 }],
+  [21, 'to the hoist', 'whoosh', { len: 0.4, from: 500, to: 2800 }],
+  [21.4, 'super LOWER THE BASKET', 'pop', { pitch: 'F5' }],
+  [28, 'the surge', 'thud', { pitch: 'D2' }],
+  [28.3, 'super BEAT THE WATER', 'pop', { pitch: 'D5' }],
+  [31, 'whip home', 'whoosh', { len: 0.4, from: 2800, to: 500, pan: -0.3 }],
+  [31.3, 'super BRING THEM HOME', 'pop', { pitch: 'A4' }],
+  [34.5, 'SUCCESSFUL LANDING', 'click'],
+  [36.5, 'debrief', 'whoosh', { len: 0.45, from: 500, to: 2800 }],
+  [40.5, 'LIVE THE MISSION', 'thud', { pitch: 'D2' }],
+  [45, 'end card', 'thud', { pitch: 'D2' }],
 ];
 
 // ---------------------------------------------------------------- assets
-const SHOTS = ['intro1_lines', 'intro1_full', 'intro_stamp', 'ops_call', 'ops_sarah', 'ops_bryan', 'ops_choice',
-  'fly_spotted', 'fly_cruise', 'debrief', 'title'];
-const CLIPS = { flight: 36, hoist: 48, surge: 36 };
+const SHOTS = ['ops_call', 'ops_sarah', 'ops_choice', 'fly_spotted', 'debrief'];
+const CLIPS = { liftoff: 54, flight: 36, hoist2: 132, surge: 36, landing: 96 };
 const images = {};
 for (const s of SHOTS) images[s] = `assets/shots/${s}.png`;
-// clip frames load as ImageBitmaps in init(): ~120 large <img> decodes at once exceed the browser's decode budget
+// clip frames load as ImageBitmaps in init(): ~350 large <img> decodes at once exceed the browser's decode budget
 const FRAMES = {};
 
 // ---------------------------------------------------------------- helpers
@@ -85,82 +84,70 @@ function flash(ctx, u, u0, k = 3.2, a = 0.85) {
 }
 
 // ---------------------------------------------------------------- scenes
-function sceneHook(ctx, u, IMG) {                                       // b0-6
-  // b0-2: the camera reads along the first line; b2: cut wide to the punch line, then push through it
-  const pull = E.inExpo(prog(u, 5.3, 6));
-  ctx.save(); M.shake(ctx, u, 2, 18, 4, 0.25);
-  if (u < 2) plate(ctx, IMG.intro1_lines, 1.75, lerp(350, 1570, E.inOutSine(prog(u, 0, 2))), 390);
-  else plate(ctx, IMG.intro1_full, logZoom(1.2, 1.55, E.outCubic(prog(u, 2, 5.3))) * logZoom(1, 2.4, pull), 960, 600);
-  ctx.restore();
-  flash(ctx, u, 2, 3.4, 0.9);
+// A kinetic super over a left scrim, in at u0, out at exitU.
+function superOver(ctx, u, u0, exitU, lines) {
+  const k = clamp(springU(u, u0 - 0.1, SPRING.gentle)) * (1 - E.inCubic(prog(u, exitU + 0.1, exitU + 0.6)));
+  if (k > 0) { ctx.globalAlpha = k; scrim(ctx, 'left', 0.9); ctx.globalAlpha = 1; }
+  lines.forEach(([words, base, size]) => superLine(ctx, words, 120, base, size, u, exitU));
 }
-function sceneStamp(ctx, u, IMG) {                                      // b6-9
-  const z = logZoom(1.62, 1.72, prog(u, 6, 9.4));
-  const px = lerp(130, 170, prog(u, 6, 9.4));
-  plate(ctx, IMG.intro_stamp, z, px, 830);
-  // the three stamp lines type on: mask each line until its beat
-  ctx.save(); zoomAbout(ctx, z, px, 830);
-  [[6, 735, 790], [6.75, 795, 832], [7.5, 860, 896]].forEach(([u0, y0, y1]) => {
-    const r = E.outCubic(prog(u, u0, u0 + 0.5));
-    ctx.fillStyle = '#0b1016'; ctx.fillRect(130 + r * 760, y0, 900, y1 - y0 + 6);
-  });
-  ctx.restore();
-}
-function sceneCall(ctx, u, IMG) {                                       // b9-12
-  const p = prog(u, 9, 11.5);
-  let z = logZoom(1.12, 1.32, E.outCubic(p));
-  const punch = E.inExpo(prog(u, 11.5, 12));
-  z *= logZoom(1, 3.2, punch);
-  const pulse = 1 + 0.012 * Math.sin((u - 9) * Math.PI * 2 * 1.6) * (u < 11.5 ? 1 : 0);
-  plate(ctx, IMG.ops_call, z * pulse, 960, lerp(560, 732, punch));
-  if (u >= 11.5) { ctx.fillStyle = `rgba(92,214,138,${0.35 * Math.exp(-(u - 11.5) * 4)})`; ctx.fillRect(0, 0, W, H); }
-}
-function sceneSarah(ctx, u, IMG) {                                      // b12-21
-  const p = E.inOutSine(prog(u, 12, 21));
-  const z = logZoom(1.42, 1.22, p);
-  plate(ctx, IMG.ops_sarah, z, lerp(360, 1560, p), lerp(420, 860, p));
-  const sIn = springU(u, 15.6, SPRING.gentle), sOut = E.inCubic(prog(u, 20.3, 21));
-  if (sIn > 0) { ctx.globalAlpha = sIn * (1 - sOut); scrim(ctx, 'left', 0.82); ctx.globalAlpha = 1; }
-  superLine(ctx, [['911', 16, true], ["CAN'T", 16.5], ['REACH', 16.62], ['THEM.', 16.74]], 120, 330, 150, u, 20.3);
-  if (u > 17) text(ctx, 'Sarah M. · calling about her parents on Siesta Key', 124, 400, font(34, 500, UI), `rgba(243,246,249,${clamp((u - 17) * 2) * (1 - sOut)})`);
-}
-function sceneBryan(ctx, u, IMG) {                                      // b21-26
-  const p = E.inOutSine(prog(u, 21, 26));
-  const z = logZoom(1.18, 1.42, p);
-  const dx = (1 - E.outCubic(prog(u, 21, 21.6))) * 220;
-  plate(ctx, IMG.ops_bryan, z, 1270, 720, dx);
-  const k = springU(u, 21.8, SPRING.gentle);
-  if (k > 0) {
-    ctx.globalAlpha = k; scrim(ctx, 'left', 0.7); ctx.globalAlpha = 1;
-    superLine(ctx, [['THE', 22], ['LAST', 22.15], ['RESORT.', 22.3, true]], 120, 300, 130, u, 25.4);
+// Act 1: Olivia receives the call                                       b0-7.4
+function sceneCall(ctx, u, IMG) {
+  if (u < 2) {
+    const punch = E.inExpo(prog(u, 1.6, 2));
+    const pulse = 1 + 0.012 * Math.sin(u * Math.PI * 2 * 1.6) * (u < 1.6 ? 1 : 0);
+    plate(ctx, IMG.ops_call, logZoom(1.15, 1.3, prog(u, 0, 1.6)) * logZoom(1, 3.2, punch) * pulse, 960, lerp(600, 732, punch));
+    if (u >= 1.6) { ctx.fillStyle = `rgba(92,214,138,${0.35 * Math.exp(-(u - 1.6) * 4)})`; ctx.fillRect(0, 0, W, H); }
+    return;
   }
+  // Olivia on the ops floor, then the camera drifts down to Sarah's line in the dialogue box
+  const p = E.inOutSine(prog(u, 2, 7.4));
+  plate(ctx, IMG.ops_sarah, logZoom(1.7, 1.3, p), lerp(960, 900, p), lerp(560, 820, p));
+  flash(ctx, u, 2, 6, 0.25);
+  superOver(ctx, u, 2.3, 6.8, [[[['OLIVIA', 2.3, true]], 300, 150], [[['RECEIVES', 2.6], ['THE', 2.72], ['CALL.', 2.84]], 450, 120]]);
 }
-function sceneChoice(ctx, u, IMG) {                                     // b26-32
-  const p = prog(u, 26, 32);
-  const z = logZoom(1.08, 1.75, E.inQuad(p));
+// Act 2: Bryan gives the order                                          b7.4-13
+function sceneOrder(ctx, u, IMG) {
+  // Bryan's own line ("You in, operator?") is the one on screen: hold on him, then push to I'M IN
+  const settle = E.inOutCubic(prog(u, 10.2, 11));
+  const dx = (1 - E.outCubic(prog(u, 7.4, 8))) * 220;
+  if (u < 11) {
+    const z = lerp(logZoom(1.45, 1.6, prog(u, 7.4, 10.2)), 1.2, settle);
+    plate(ctx, IMG.ops_choice, z, lerp(1240, 1060, settle), lerp(640, 700, settle), dx);
+    superOver(ctx, u, 7.8, 10.1, [[[['BRYAN', 7.8, true]], 300, 150], [[['GIVES', 8.1], ['THE', 8.22], ['ORDER.', 8.34]], 450, 120]]);
+    return;
+  }
+  const p = prog(u, 11, 13);
+  const z = logZoom(1.2, 1.8, E.inQuad(p));
   plate(ctx, IMG.ops_choice, z, 1060, 700);
-  // I'M IN press at b31: the real button dips and a ring blooms from it
   ctx.save(); zoomAbout(ctx, z, 1060, 700);
-  if (u >= 31) {
-    const r = prog(u, 31, 31.8);
+  if (u >= 12.75) {
+    const r = prog(u, 12.75, 13.3);
     ctx.strokeStyle = `rgba(246,162,60,${1 - r})`; ctx.lineWidth = 10 * (1 - r) + 2;
     rrect(ctx, 560 - r * 40, 652 - r * 40, 380 + r * 80, 104 + r * 80, 22 + r * 20); ctx.stroke();
-    ctx.fillStyle = `rgba(0,0,0,${0.3 * Math.exp(-(u - 31) * 6)})`; rrect(ctx, 560, 652, 380, 104, 18); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.3)'; rrect(ctx, 560, 652, 380, 104, 18); ctx.fill();
   }
   ctx.restore();
-  // riser vignette closing in
-  const v = E.inCubic(prog(u, 29, 32));
+  const v = E.inCubic(prog(u, 11, 13));
   if (v > 0) { const g = ctx.createRadialGradient(W / 2, H * 0.62, H * (0.9 - v * 0.6), W / 2, H * 0.62, H * 1.2); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(0,0,0,${0.85 * v})`); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); }
 }
-function sceneDrop(ctx, u, IMG) {                                       // b32-34.4
-  const f = (u - 32) / 2.4 * 33;
-  ctx.save(); M.shake(ctx, u, 32, 22, 7, 0.3);
-  plate(ctx, clipFrame(IMG, 'flight', f), logZoom(1.12, 1.04, prog(u, 32, 34.4)), 700, 420);
+// Act 3: you deploy as an operator                                     b13-16.3
+function sceneDeploy(ctx, u, IMG) {
+  const f = (u - 13) / 3.3 * 53;
+  ctx.save(); M.shake(ctx, u, 13, 22, 7, 0.3);
+  plate(ctx, clipFrame(IMG, 'liftoff', f), logZoom(1.45, 1.25, E.outCubic(prog(u, 13, 16.3))), 640, 560);
   ctx.restore();
-  ctx.globalAlpha = clamp(springU(u, 32, SPRING.snappy)); scrim(ctx, 'bottom', 0.85); ctx.globalAlpha = 1;
+  ctx.globalAlpha = clamp(springU(u, 13, SPRING.snappy)); scrim(ctx, 'bottom', 0.85); ctx.globalAlpha = 1;
   const s = M.FORMAT.safe;
-  const exitU = 33.9;
-  [['OPERATION', 32.05, C.accent, 150], ['HURRICANE', 32.2, C.white, 230]].forEach(([w, u0, col, size], i) => {
+  superLine(ctx, [['YOU', 13.05], ['DEPLOY', 13.2]], s.x, H - s.y - 200, 200, u, 15.9);
+  superLine(ctx, [['AS', 13.6, true], ['AN', 13.7, true], ['OPERATOR.', 13.8, true]], s.x, H - s.y - 70, 110, u, 15.95);
+  flash(ctx, u, 13, 4.5, 0.95);
+}
+function sceneTitle(ctx, u, IMG) {                                     // b16.3-19.5
+  const f = (u - 16.3) / 3.2 * 35;
+  plate(ctx, clipFrame(IMG, 'flight', f), logZoom(1.14, 1.04, prog(u, 16.3, 19.5)), 700, 420);
+  ctx.globalAlpha = clamp(springU(u, 16.3, SPRING.snappy)); scrim(ctx, 'bottom', 0.8); ctx.globalAlpha = 1;
+  const s = M.FORMAT.safe, exitU = 18.9;
+  [['OPERATION', 16.35, C.accent, 150], ['HURRICANE', 16.5, C.white, 230]].forEach(([w, u0, col, size], i) => {
     const fnt = font(size, 800, DISPLAY), L = layout(ctx, w, fnt, size * 0.012);
     const base = H - s.y - 70 - (i === 0 ? 210 : 0);
     L.glyphs.forEach((g, j) => {
@@ -170,49 +157,60 @@ function sceneDrop(ctx, u, IMG) {                                       // b32-3
       glyph(ctx, g.ch, s.x + g.cx - out * (W * 0.9), base + (1 - k) * 180, fnt, col, 1, clamp(k, 0, 1.2));
     });
   });
-  flash(ctx, u, 32, 4.5, 0.95);
 }
 function whipPair(ctx, u, u0, drawA, drawB) {                           // pan with both shots on screen
   const p = E.inOutCubic(prog(u, u0 - 0.3, u0 + 0.3));
   ctx.save(); ctx.translate(-p * W, 0); drawA(ctx); ctx.restore();
   ctx.save(); ctx.translate((1 - p) * W, 0); drawB(ctx); ctx.restore();
 }
-function spotted(ctx, u, IMG) { plate(ctx, IMG.fly_spotted, logZoom(1.15, 1.4, prog(u, 34.4, 36.3)), 1400, 600); }
-function cruise(ctx, u, IMG) {
-  plate(ctx, IMG.fly_cruise, logZoom(1.25, 1.1, prog(u, 35.7, 38.4)), 1300, 520);
+function spotted(ctx, u, IMG) { plate(ctx, IMG.fly_spotted, logZoom(1.15, 1.45, prog(u, 19.2, 21.3)), 1400, 600); }
+// the basket: approach, lower, Tom climbs in, winch up, JACKPOT on b24.5   b21-28
+function hoistFrame(u) {
+  if (u < 24.5) return (u - 21) / 3.5 * 37;
+  return 37 + (u - 24.5) / 3.5 * 23;
 }
-function sceneSouls(ctx, u, IMG) {                                      // b36-38 (supers over the cruise)
-  cruise(ctx, u, IMG);
-  ctx.globalAlpha = clamp(springU(u, 36.3, SPRING.gentle)); scrim(ctx, 'left', 0.8); ctx.globalAlpha = 1;
-  superLine(ctx, [['15', 36.2, true], ['SOULS.', 36.32]], 120, 420, 210, u);
-  superLine(ctx, [['7', 36.75, true], ['MINUTES.', 36.87]], 120, 640, 210, u);
+function sceneHoist(ctx, u, IMG) {
+  const zIn = E.inOutCubic(prog(u, 24.2, 25));
+  const z = lerp(logZoom(1.55, 1.75, prog(u, 21, 24.2)), 1.18, zIn);
+  plate(ctx, clipFrame(IMG, 'hoist2', hoistFrame(u)), z, lerp(1440, 1000, zIn), lerp(640, 520, zIn));
+  superOver(ctx, u, 21.4, 23.9, [[[['LOWER', 21.4], ['THE', 21.52], ['BASKET.', 21.64, true]], 300, 130]]);
 }
-function sceneSurge(ctx, u, IMG) {                                      // b38-41
-  const f = (u - 38.4) / 2.6 * 35;
-  plate(ctx, clipFrame(IMG, 'surge', f), logZoom(1.6, 1.9, E.inOutSine(prog(u, 38.4, 41))), 1140, 760);
-  ctx.globalAlpha = clamp(springU(u, 38.5, SPRING.gentle)); scrim(ctx, 'left', 0.7); ctx.globalAlpha = 1;
-  superLine(ctx, [['THE', 38.6], ['WATER', 38.72], ['KEEPS', 38.84], ['RISING.', 38.96, true]], 120, 300, 130, u, 40.6);
+function sceneSurge(ctx, u, IMG) {                                      // b28-31
+  const f = (u - 28) / 3 * 35;
+  ctx.save(); M.shake(ctx, u, 28, 14, 5, 0.3);
+  plate(ctx, clipFrame(IMG, 'surge', f), logZoom(1.6, 1.9, E.inOutSine(prog(u, 28, 31))), 1140, 760);
+  ctx.restore();
+  superOver(ctx, u, 28.3, 30.5, [[[['BEAT', 28.3], ['THE', 28.42], ['WATER.', 28.54, true]], 300, 130]]);
 }
-function sceneJackpot(ctx, u, IMG) {                                    // b41-44
-  const f = (u - 41) / 2.9 * 47;
-  const zIn = E.outCubic(prog(u, 42.1, 43));
-  const z = logZoom(1.15, 1.5, zIn) * logZoom(1, 2.2, E.inExpo(prog(u, 43.6, 44)));
-  plate(ctx, clipFrame(IMG, 'hoist', f), z, lerp(1300, 960, zIn), lerp(600, 450, zIn));
+function sceneHome(ctx, u, IMG) {                                       // b31-36.5
+  const f = (u - 31) / 5.5 * 95;
+  const p = E.inOutSine(prog(u, 31, 36.5));
+  plate(ctx, clipFrame(IMG, 'landing', f), logZoom(1.5, 1.22, p), lerp(1300, 820, p), lerp(560, 520, p));
+  superOver(ctx, u, 31.3, 33.9, [[[['BRING', 31.3], ['THEM', 31.42], ['HOME.', 31.54, true]], 300, 130]]);
 }
-function sceneDebrief(ctx, u, IMG) {                                    // b44-47
-  const p = E.inOutSine(prog(u, 44, 46.2));
-  const z = logZoom(1.02, 1.32, p);
-  const dy = (1 - E.outCubic(prog(u, 44, 44.6))) * 160;
-  ctx.save(); ctx.translate(0, dy); plate(ctx, IMG.debrief, z, lerp(600, 420, p), lerp(560, 960, p)); ctx.restore();
-  const out = E.inCubic(prog(u, 45.8, 46.2));
+function sceneDebrief(ctx, u, IMG) {                                    // b36.5-40.5
+  const p = E.inOutSine(prog(u, 36.5, 40.5));
+  const z = logZoom(1.05, 1.4, p);
+  const dy = (1 - E.outCubic(prog(u, 36.5, 37.1))) * 160;
+  ctx.save(); ctx.translate(0, dy); plate(ctx, IMG.debrief, z, lerp(600, 520, p), lerp(560, 640, p)); ctx.restore();
+}
+function sceneLive(ctx, u, IMG) {                                       // b40.5-45: the helo flies on through the storm
+  const p = prog(u, 40.5, 45);
+  plate(ctx, clipFrame(IMG, 'flight', p * 35), logZoom(1.25, 1.45, p), 700, 380);
+  flash(ctx, u, 40.5, 5, 0.35);
+  const k = clamp(springU(u, 40.5, SPRING.gentle));
+  ctx.globalAlpha = k; scrim(ctx, 'bottom', 0.9); ctx.globalAlpha = 1;
+  const s = M.FORMAT.safe;
+  superLine(ctx, [['LIVE', 40.6], ['THE', 40.75], ['MISSION.', 40.9, true]], s.x, H - s.y - 60, 230, u, 44.4);
+  const out = E.inCubic(prog(u, 44.6, 45));
   if (out > 0) { ctx.fillStyle = `rgba(7,12,18,${out})`; ctx.fillRect(0, H * (1 - out), W, H * out); }
 }
-function sceneEnd(ctx, u, IMG) {                                        // b46.4-50
+function sceneEnd(ctx, u, IMG) {                                        // b45-50
   fill(ctx, C.ink);
   const glowG = ctx.createRadialGradient(W * 0.22, H * 0.55, 0, W * 0.22, H * 0.55, W * 0.6);
   glowG.addColorStop(0, 'rgba(246,162,60,0.10)'); glowG.addColorStop(1, 'rgba(246,162,60,0)');
   ctx.fillStyle = glowG; ctx.fillRect(0, 0, W, H);
-  const s = M.FORMAT.safe, x = s.x + 24, u0 = 46.2;
+  const s = M.FORMAT.safe, x = s.x + 24, u0 = 45.4;
   const rows = [["DON'T BE A SPECTATOR.", C.accent, 76, 250, 0], ['OPERATION', C.white, 150, 420, 0.1], ['HURRICANE', C.white, 230, 630, 0.18]];
   rows.forEach(([w, col, size, base, d]) => {
     const fnt = font(size, 800, DISPLAY), L = layout(ctx, w, fnt, size * 0.012);
@@ -225,17 +223,17 @@ function sceneEnd(ctx, u, IMG) {                                        // b46.4
     });
   });
   const t2 = E.outQuint(prog(u, u0 + 0.35, u0 + 0.9));
-  if (t2 > 0) text(ctx, 'A Grey Bull Rescue mission concept', x + 6, 712 + (1 - t2) * 30, font(44, 500, UI), `rgba(169,182,195,${t2})`);
-  const k3 = springU(u, u0 + 0.55, SPRING.bouncy);
+  if (t2 > 0) text(ctx, 'Fly as a Grey Bull Rescue operator · a mission concept', x + 6, 712 + (1 - t2) * 30, font(44, 500, UI), `rgba(169,182,195,${t2})`);
+  const k3 = springU(u, u0 + 0.55, SPRING.snappy);
   if (k3 > 0) {
-    ctx.save(); ctx.translate(x, 780); ctx.scale(clamp(k3, 0, 1.2), clamp(k3, 0, 1.2));
+    ctx.save(); ctx.translate(x, 780); ctx.scale(clamp(k3, 0, 1.05), clamp(k3, 0, 1.05));
     rrect(ctx, 0, 0, 560, 96, 48); ctx.fillStyle = C.accent; ctx.fill();
     text(ctx, 'FUND THE NEXT RESCUE', 280, 64, font(60, 800, DISPLAY), C.ink, 'center', 1);
     ctx.restore();
   }
   const t4 = E.outQuint(prog(u, u0 + 0.75, u0 + 1.2));
   if (t4 > 0) {
-    text(ctx, 'greybullrescue.org', x + 600, 845, font(46, 700, UI), `rgba(243,246,249,${t4})`);
+    text(ctx, 'greybullrescue.org', x + 620, 845, font(46, 700, UI), `rgba(243,246,249,${t4})`);
     text(ctx, 'Concept prototype · not an official Grey Bull Rescue product · voices are synthesized', x + 4, H - s.y - 6, font(24, 500, UI), `rgba(120,134,148,${t4})`);
   }
 }
@@ -259,20 +257,19 @@ M.film({
   },
   draw(ctx, u, t, IMG) {
     fill(ctx, C.ink);
-    if (u < 6) sceneHook(ctx, u, IMG);
-    else if (u < 8.7) sceneStamp(ctx, u, IMG);
-    else if (u < 9.3) whipPair(ctx, u, 9, (c) => sceneStamp(c, u, IMG), (c) => sceneCall(c, u, IMG));
-    else if (u < 12) sceneCall(ctx, u, IMG);
-    else if (u < 21) sceneSarah(ctx, u, IMG);
-    else if (u < 26) sceneBryan(ctx, u, IMG);
-    else if (u < 32) sceneChoice(ctx, u, IMG);
-    else if (u < 34.4) sceneDrop(ctx, u, IMG);
-    else if (u < 35.7) spotted(ctx, u, IMG);
-    else if (u < 36.3) whipPair(ctx, u, 36, (c) => spotted(c, u, IMG), (c) => sceneSouls(c, u, IMG));
-    else if (u < 38.4) sceneSouls(ctx, u, IMG);
-    else if (u < 41) sceneSurge(ctx, u, IMG);
-    else if (u < 44) sceneJackpot(ctx, u, IMG);
-    else if (u < 46.2) sceneDebrief(ctx, u, IMG);
+    if (u < 7.1) sceneCall(ctx, u, IMG);
+    else if (u < 7.7) whipPair(ctx, u, 7.4, (c) => sceneCall(c, u, IMG), (c) => sceneOrder(c, u, IMG));
+    else if (u < 13) sceneOrder(ctx, u, IMG);
+    else if (u < 16.3) sceneDeploy(ctx, u, IMG);
+    else if (u < 19.2) sceneTitle(ctx, u, IMG);
+    else if (u < 19.8) whipPair(ctx, u, 19.5, (c) => sceneTitle(c, u, IMG), (c) => spotted(c, u, IMG));
+    else if (u < 21) spotted(ctx, u, IMG);
+    else if (u < 28) sceneHoist(ctx, u, IMG);
+    else if (u < 30.7) sceneSurge(ctx, u, IMG);
+    else if (u < 31.3) whipPair(ctx, u, 31, (c) => sceneSurge(c, u, IMG), (c) => sceneHome(c, u, IMG));
+    else if (u < 36.5) sceneHome(ctx, u, IMG);
+    else if (u < 40.5) sceneDebrief(ctx, u, IMG);
+    else if (u < 45) sceneLive(ctx, u, IMG);
     else sceneEnd(ctx, u, IMG);
   },
   post(ctx, u, t) {

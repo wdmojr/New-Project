@@ -1565,7 +1565,7 @@ function drawHUD() {
   rr(mx, 46, mw, 14, 7); ctx.fillStyle = '#1e2a35'; ctx.fill();
   rr(mx, 46, Math.max(14, mw * prog), 14, 7); const sg = ctx.createLinearGradient(mx, 0, mx + mw, 0); sg.addColorStop(0, '#e6c14e'); sg.addColorStop(1, RED); ctx.fillStyle = sg; ctx.fill();
   if (F.surgeT > 0 && Math.sin(F.t * 12) > 0) txt('▲ SURGE · WATER RISING', mx + mw / 2, 57, 11, '#fff', 'center', 900); else
-  txt(F.over ? 'SURGE PEAK' : `SURGE PEAK IN ${fmtTime(left)}  ·  ${F.rescued + F.cabin.length} / ${survivors.length} LIVES`, mx + mw / 2, 57, 11, '#fff', 'center', 900);
+  txt(F.over ? 'SURGE PEAK' : `SURGE PEAK IN ${fmtTime(left)}  ·  ${F.rescued + F.cabin.length} / ${survivors.length} SOULS`, mx + mw / 2, 57, 11, '#fff', 'center', 900);
   panel(752, 10, 164, 52, 10);
   txt('WIND', 764, 30, 11, '#9fb3c6', 'left', 700);
   txt(`${Math.round(Math.abs(F.wind) * 0.6)} kt`, 904, 30, 13, Math.abs(F.wind) > 120 ? RED : '#f3f6f9', 'right', 800);

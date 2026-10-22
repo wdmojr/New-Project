@@ -34,3 +34,14 @@ Contact sheets reviewed (all 50 beats).
 - Sync: 12/20 onsets within 20 ms. The rest are soft-attack whooshes, and the cuts land on the grid. **8**
 
 Verdict: SHIP.
+
+## v2 recut ("Live the mission")
+User feedback: the best parts (basket, hoist, flying back, landing) were missing; frame it as the player's journey.
+Recut to: Olivia receives the call, Bryan gives the order, you deploy. Gameplay is now b13-45 (19 of 30 s).
+New clips were recorded: liftoff, hoist2 (the full basket sequence), landing (SUCCESSFUL LANDING). The HUD now reads SOULS.
+Fixes after the first v2 sheet:
+- Bryan's plate now shows his own line on screen.
+- The JACKPOT banner is no longer cropped.
+- LIVE THE MISSION moved off the landing banner.
+- The FUND pill no longer overshoots the URL.
+Scores: hook 8, readability 8, motion 8, variety 9, brand 8, story 9. Verdict: SHIP.

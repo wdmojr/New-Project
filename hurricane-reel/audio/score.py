@@ -6,9 +6,9 @@
 
     MOTION_REEL_SKILL=<skill> uv run hurricane-reel/audio/score.py
 
-100 BPM, 4/4, 50 beats = 30.0 s, D minor. Storm drone and thunder for the cold open, the phone
-rings, a ticking pulse under Sarah and Bryan, a riser into the drop at b32, a driving groove for
-the gameplay montage, a bright sting on JACKPOT, and a D-major resolve on the end card.
+100 BPM, 4/4, 50 beats = 30.0 s, D minor. The phone rings and Olivia answers over a storm drone,
+a ticking pulse under Sarah and Bryan, a riser into the drop at b13 ("You in, operator?"), a
+driving groove for the whole flight, a sting on JACKPOT, and a D-major resolve on the end card.
 
 Reads  hurricane-reel/audio/vo/*.wav (the game's Piper voice lines)
 Writes hurricane-reel/audio/music.wav, vo.wav, hurricane-reel/beats.json
@@ -91,12 +91,16 @@ def bell(note, length=2.2):
 
 # (take, take start s, take end s, beat the phrase lands on, radio?, text)
 PHRASES = [
-    ("c2", 0.0, 5.31, 12, False, "I've called 911. The county. Everyone. They all say nobody can get out there tonight."),
-    ("bq1", 0.0, 2.99, 21, False, "We're the last resort. We're never the first phone call."),
-    ("bq3", 0.0, 3.30, 26, False, "We don't come home until they come home. You in, operator?"),
-    ("o_danger", 0.0, 1.76, 38, True, "Water's almost over that roof!"),
-    ("b_jackpot_Tom", 2.38, 4.80, 41, True, "Jackpot! Jackpot! Jackpot!"),
-    ("bq4", 1.26, 2.44, 45.5, False, "Don't be a spectator."),
+    ("o0", 0.0, 1.95, 0.3, False, "Grey Bull Rescue, this is Olivia."),
+    ("c2", 3.10, 5.31, 3.7, False, "They all say nobody can get out there tonight."),
+    ("bq3", 0.0, 3.10, 7.5, False, "We don't come home until they come home. You in, operator?"),
+    ("b_liftoff", 0.0, 1.95, 13.7, True, "Operator, lift off and head south."),
+    ("b_jackpot_Tom", 2.38, 4.80, 24.5, True, "Jackpot! Jackpot! Jackpot!"),
+    ("o_danger", 0.0, 1.60, 28.6, True, "Water's almost over that roof!"),
+    ("b_full", 0.0, 2.70, 31.5, True, "Helo's full. Bring them back to base, operator."),
+    ("o_all", 0.0, 2.60, 36.6, False, "That's everyone. All fifteen souls saved."),
+    ("b_proud", 0.0, 2.55, 41.0, False, "Proud of you, operator. Welcome to the team."),
+    ("bq4", 1.20, 2.40, 45.6, False, "Don't be a spectator."),
 ]
 
 
@@ -143,44 +147,35 @@ def main():
     # harmony
     Dm, Bb, F, C, A = ["D3", "F3", "A3"], ["Bb2", "D3", "F3"], ["F2", "A2", "C3", "F3"], ["C3", "E3", "G3"], ["A2", "C#3", "E3"]
 
-    # ---- cold open b0-9: storm drone, thunder, heartbeat
-    music.add(pad_chord(["D2", "A2", "D3"], T(12.5), (160, 700), attack=0.02, release=0.6), 0, 0.55)
-    fx.add(thunder(3.4, 1.0), 0, 0.85)
-    fx.add(thunder(4.0, 1.3), 2, 1.0)
-    fx.add(sub_drop(1.6, 80, 28), 2, 0.8)
-    fx.add(thunder(3.0, 0.7), 6.5, 0.45, pan=0.4)
-    for b in (4, 6, 8, 10):
-        drums.add(kick(soft=True), b, 0.55)
-        drums.add(kick(soft=True), b + 0.33, 0.35)
-    # ---- the call b8-11.5
-    fx.add(ring(1.0), 8, 0.22, pan=0.15)
-    fx.add(ring(1.0), 9.7, 0.22, pan=0.15)
-
-    # ---- tension b12-26: ticking, pulse bass, Dm -> Bb -> Gm colour
-    music.add(pad_chord(Dm, T(9), 650, attack=0.4, release=0.5), 12, 0.32)
-    music.add(pad_chord(Bb, T(5.2), 700, attack=0.3, release=0.5), 21, 0.32)
-    for b in range(12, 26):
-        bass.add(bass_note("D1" if b < 21 else "Bb0", BEAT * 0.8, 260), b, 0.42)
-    for b in np.arange(12, 26, 0.5):
+    # ---- the call b0-7.4: storm drone, phone ring, Olivia answers, Sarah's plea over a ticking pulse
+    music.add(pad_chord(["D2", "A2", "D3"], T(7.6), (160, 700), attack=0.02, release=0.6), 0, 0.5)
+    fx.add(thunder(3.4, 0.9), 0, 0.6)
+    fx.add(ring(0.9), 0, 0.2, pan=0.15)
+    music.add(pad_chord(Dm, T(7.6), 650, attack=0.4, release=0.5), 2, 0.3)
+    for b in np.arange(2, 13, 0.5):
         drums.add(hat(), b, 0.05 if b % 1 else 0.08, pan=0.25)
-    for b in range(16, 26, 2):
-        drums.add(tom(98, 0.8), b + 1, 0.25, pan=-0.2)
+    for b in range(2, 13):
+        bass.add(bass_note("D1" if b < 7.5 else ("Bb0" if b < 10.5 else "A0"), BEAT * 0.8, 260), b, 0.42)
+    for b in (2, 4, 6):
+        drums.add(kick(soft=True), b, 0.5)
+        drums.add(kick(soft=True), b + 0.33, 0.3)
+    # ---- the order b7.4-13: Bb -> A, kicks crescendo, riser into the drop
+    music.add(pad_chord(Bb, T(3.1), (500, 1400), attack=0.2), 7.5, 0.34)
+    music.add(pad_chord(A, T(2.5), (1400, 3500), attack=0.05), 10.5, 0.4)
+    for b in range(8, 13):
+        drums.add(kick(), b, 0.4 + 0.08 * (b - 8))
+        drums.add(tom(82, 1.0), b + 0.5, 0.16 + 0.04 * (b - 8))
+    for i, b in enumerate(np.arange(11, 12.75, 0.25)):
+        drums.add(clap(tight=True), b, 0.1 + 0.04 * i, pan=0.1 * (-1) ** i)
+    fx.add(riser(T(5)), 8, 0.45)
 
-    # ---- build b26-32: Bb -> A, kicks crescendo, snare roll, riser
-    music.add(pad_chord(Bb, T(3), (500, 1600), attack=0.1), 26, 0.36)
-    music.add(pad_chord(A, T(2.75), (1600, 3500), attack=0.05), 29, 0.4)
-    for b in range(26, 32):
-        drums.add(kick(), b, 0.45 + 0.08 * (b - 26))
-        drums.add(tom(82, 1.0), b + 0.5, 0.18 + 0.04 * (b - 26))
-    for i, b in enumerate(np.arange(30, 31.75, 0.25)):
-        drums.add(clap(tight=True), b, 0.12 + 0.05 * i, pan=0.1 * (-1) ** i)
-    fx.add(riser(T(6)), 26, 0.5)
-
-    # ---- DROP b32-44: driving groove
-    fx.add(sub_drop(1.8, 90, 28), 32, 1.0)
-    fx.add(crash(2.4), 32, 0.5)
-    fx.add(thunder(3.0, 1.4), 32, 0.55)
-    harmony = [(32, Dm, "D"), (36, Bb, "Bb"), (40, F, "F"), (42, C, "C")]
+    # ---- DROP b13-40: you deploy; the driving groove carries the whole flight
+    fx.add(sub_drop(1.8, 90, 28), 13, 1.0)
+    fx.add(crash(2.4), 13, 0.5)
+    fx.add(thunder(3.0, 1.4), 13, 0.5)
+    prog_ = [Dm, Bb, F, C]
+    names = ["D", "Bb", "F", "C"]
+    harmony = [(b, prog_[(i % 4)], names[i % 4]) for i, b in enumerate(range(13, 37, 4))] + [(37, Dm, "D")]
 
     def chord(b):
         cur = harmony[0]
@@ -189,50 +184,61 @@ def main():
                 cur = h
         return cur
 
-    for b in range(32, 44):
-        drums.add(kick(), b, 0.95)
-        if b % 2 == 1:
+    for b in range(13, 40):
+        half = b >= 37                      # debrief: half-time feel
+        if not half or b % 2 == 1:
+            drums.add(kick(), b, 0.95 if not half else 0.7)
+        if b % 2 == 0 and not half:
             drums.add(clap(), b, 0.5)
-        drums.add(hat(), b + 0.5, 0.16, pan=0.3)
-        drums.add(hat(), b + 0.25, 0.05, pan=-0.3)
-        drums.add(hat(), b + 0.75, 0.05, pan=-0.3)
-    for b in (35.5, 39.5, 43.5):
+        drums.add(hat(), b + 0.5, 0.16 if not half else 0.08, pan=0.3)
+        if not half:
+            drums.add(hat(), b + 0.25, 0.05, pan=-0.3)
+            drums.add(hat(), b + 0.75, 0.05, pan=-0.3)
+    for b in (16.5, 20.5, 27.5, 30.5):     # fills into the title, the hoist, the surge, the flight home
         drums.add(tom(120), b, 0.4, pan=-0.3)
         drums.add(tom(90), b + 0.25, 0.45, pan=0.3)
     root_oct = {"D": ("D2", "D3"), "Bb": ("Bb1", "Bb2"), "F": ("F1", "F2"), "C": ("C2", "C3")}
-    for k in range(24):
-        b = 32 + k / 2
+    for k in range(48):
+        b = 13 + k / 2
         lo, hi = root_oct[chord(b)[2]]
-        bass.add(bass_note(hi if k % 4 == 3 else lo, BEAT / 2 * 0.85, 1100), b, 0.6)
-    for h0, notes, _ in harmony:
-        length = (44 if h0 == 42 else [h[0] for h in harmony if h[0] > h0][0]) - h0
-        music.add(pad_chord([n[:-1] + str(int(n[-1]) + 1) for n in notes], T(length), 2400, attack=0.05), h0, 0.3)
-    for k in range(24):
-        b = 32 + k / 2
+        bass.add(bass_note(hi if k % 4 == 3 else lo, BEAT / 2 * 0.85, 1100), b, 0.55)
+    for i, (h0, notes, _) in enumerate(harmony):
+        h1 = harmony[i + 1][0] if i + 1 < len(harmony) else 40.5
+        music.add(pad_chord([n[:-1] + str(int(n[-1]) + 1) for n in notes], T(h1 - h0), 2400, attack=0.05), h0, 0.28)
+    for k in range(48):
+        b = 13 + k / 2
         if k % 2 == 1:
             notes = chord(b)[1]
-            music.add(pluck([n[:-1] + str(int(n[-1]) + 2) for n in notes], 0.18, 2600), b, 0.16, pan=0.3)
+            music.add(pluck([n[:-1] + str(int(n[-1]) + 2) for n in notes], 0.18, 2600), b, 0.14, pan=0.3)
     # JACKPOT sting
     for i, nt in enumerate(("D5", "F5", "A5", "D6")):
-        music.add(pluck([nt], 0.5, 4200), 41 + i * 0.25, 0.32, pan=-0.2 + 0.13 * i)
-    music.add(bell("D6", 1.6), 42, 0.18)
+        music.add(pluck([nt], 0.5, 4200), 24.5 + i * 0.25, 0.3, pan=-0.2 + 0.13 * i)
+    music.add(bell("D6", 1.6), 25.5, 0.16)
+    # the surge: thunder and a sub under the water
+    fx.add(thunder(3.2, 1.2), 28, 0.55, pan=-0.3)
+    fx.add(sub_drop(1.4, 70, 30), 28, 0.6)
+    # SUCCESSFUL LANDING: a bright bell
+    music.add(bell("A5", 1.8), 34.5, 0.2)
+    music.add(bell("D6", 1.6), 34.75, 0.12)
 
-    # ---- debrief b44-47: pull back to a Dm pad, heartbeat returns
-    music.add(pad_chord(Dm, T(3), 900, attack=0.05, release=0.4), 44, 0.4)
-    drums.add(kick(soft=True), 44, 0.5)
-    drums.add(kick(soft=True), 44.33, 0.3)
-    fx.add(riser(T(1.5)), 45.5, 0.25)
+    # ---- live the mission b40.5-45: pull back to a pad, heartbeat, riser to the end card
+    fx.add(sub_drop(1.4, 70, 30), 40.5, 0.6)
+    music.add(pad_chord(["Bb2", "D3", "F3", "A3"], T(4.5), 1200, attack=0.05, release=0.4), 40.5, 0.42)
+    for b in (40.5, 42.5):
+        drums.add(kick(soft=True), b, 0.5)
+        drums.add(kick(soft=True), b + 0.33, 0.3)
+    fx.add(riser(T(1.8)), 43.2, 0.3)
 
-    # ---- end card b47-50: impact + bell, D major resolve
-    fx.add(sub_drop(1.6, 70, 28), 47, 0.9)
-    fx.add(crash(2.0), 47, 0.35)
-    drums.add(kick(), 47, 0.9)
-    music.add(pad_chord(["D3", "F#3", "A3", "D4"], T(3.2), 2000, attack=0.02, release=0.8), 47, 0.42)
-    music.add(bell("D5", 2.4), 47, 0.3)
-    music.add(bell("A5", 2.0), 47.5, 0.16)
+    # ---- end card b45-50: impact + bell, D major resolve
+    fx.add(sub_drop(1.6, 70, 28), 45, 0.9)
+    fx.add(crash(2.0), 45, 0.35)
+    drums.add(kick(), 45, 0.9)
+    music.add(pad_chord(["D3", "F#3", "A3", "D4"], T(5), 2000, attack=0.02, release=0.8), 45, 0.42)
+    music.add(bell("D5", 2.4), 45, 0.28)
+    music.add(bell("A5", 2.0), 45.5, 0.15)
 
     # ---- mix the bed
-    kick_t = [T(b) for b in range(32, 44)]
+    kick_t = [T(b) for b in range(13, 37)]
     pump = sidechain(kick_t, bass.x.shape[1], 0.4, 0.1)
     ir = reverb_ir(1.8, 0.45)
     wet_src = music.x * 0.4 + fx.x * 0.15 + drums.x * 0.08
@@ -240,7 +246,7 @@ def main():
     bed = drums.x * 0.85 + bass.x * pump * 0.8 + music.x * pump * 0.75 + fx.x * 0.8 + wet * 0.5
     bed = np.stack([filt(ch, "highpass", 25) for ch in bed])[:, :N]
     # a breath of silence right before the drop
-    a, b = int(T(31.82) * SR), int(T(32.0) * SR)
+    a, b = int(T(12.82) * SR), int(T(13.0) * SR)
     bed[:, a:b] *= np.linspace(1, 0, b - a) ** 3
     bed /= np.abs(bed).max() + 1e-9
     bed *= 0.5
@@ -253,8 +259,7 @@ def main():
         click.add(kick(), b, 1.0)
     grid = measure_beats(click.x[:, :N].mean(axis=0), SR, BPM, n_beats=N_BEATS + 1)
     grid.update({"designed_bpm": BPM, "downbeats": grid["beats"][::4],
-                 "sections": {"hook": [0, 6], "where": [6, 9], "call": [9, 12], "sarah": [12, 21], "bryan": [21, 26],
-                              "ask": [26, 32], "drop": [32, 44], "debrief": [44, 47], "end": [47, 50]},
+                 "sections": {"call": [0, 7.4], "order": [7.4, 13], "deploy": [13, 21], "hoist": [21, 28], "surge": [28, 31], "home": [31, 36.5], "debrief": [36.5, 40.5], "live": [40.5, 45], "end": [45, 50]},
                  "source": "hurricane-reel/audio/score.py click track, librosa beat_track + onsets, linear fit"})
     (FILM / "beats.json").write_text(json.dumps(grid, indent=1))
     print(f"beats: {grid['bpm']} bpm, offset {grid['offset'] * 1000:.1f} ms, fit rms {grid['fit_residual_ms']} ms")
