@@ -5,7 +5,8 @@ import * as M from './lib/motion.js';
 
 const { W, H, E, prog, lerp, clamp, springU, SPRING, font, layout, glyph, text, fill, rrect, zoomAbout, mulberry32 } = M;
 
-const C = { ink: '#070C12', white: '#F3F6F9', mist: '#A9B6C3', accent: '#F6A23C' };
+// Grey Bull palette: ops-map gold accent, brand red for the ask; Triad colors red / yellow / green
+const C = { ink: '#070C12', white: '#F3F6F9', mist: '#A9B6C3', accent: '#D6A640', red: '#B3262B', mono: '#5FD09A' };
 const DISPLAY = 'Display', UI = 'UI';
 
 // Every accent: [beat, label, sfx, opts]. sfx.mjs voices them; the score carries the music hits.
@@ -192,7 +193,7 @@ function sceneDebrief(ctx, u, IMG) {                                    // b36.5
   const p = E.inOutSine(prog(u, 36.5, 40.5));
   const z = logZoom(1.05, 1.4, p);
   const dy = (1 - E.outCubic(prog(u, 36.5, 37.1))) * 160;
-  ctx.save(); ctx.translate(0, dy); plate(ctx, IMG.debrief, z, lerp(600, 520, p), lerp(560, 640, p)); ctx.restore();
+  ctx.save(); ctx.translate(0, dy); plate(ctx, IMG.debrief, z, lerp(1300, 1400, p), lerp(380, 320, p)); ctx.restore();
 }
 function sceneLive(ctx, u, IMG) {                                       // b40.5-45: the helo flies on through the storm
   const p = prog(u, 40.5, 45);
@@ -227,10 +228,20 @@ function sceneEnd(ctx, u, IMG) {                                        // b45-5
   const k3 = springU(u, u0 + 0.55, SPRING.snappy);
   if (k3 > 0) {
     ctx.save(); ctx.translate(x, 780); ctx.scale(clamp(k3, 0, 1.05), clamp(k3, 0, 1.05));
-    rrect(ctx, 0, 0, 560, 96, 48); ctx.fillStyle = C.accent; ctx.fill();
-    text(ctx, 'FUND THE NEXT RESCUE', 280, 64, font(60, 800, DISPLAY), C.ink, 'center', 1);
+    rrect(ctx, 0, 0, 560, 96, 6); ctx.fillStyle = C.red; ctx.fill();
+    text(ctx, 'FUND THE NEXT RESCUE', 280, 64, font(60, 800, DISPLAY), C.white, 'center', 1);
     ctx.restore();
   }
+  // the Triad: the team (who), Americans in trouble (why), the funding (how) -- the last one is the viewer
+  [['THE TEAM', '#D7282F'], ['AMERICANS IN TROUBLE', '#F2D21B'], ['THE FUNDING: YOU', '#8CC63F']].reduce((tx, [w, col], i) => {
+    const k = E.outQuint(prog(u, u0 + 0.9 + i * 0.25, u0 + 1.4 + i * 0.25));
+    const f = font(46, 800, DISPLAY), L = layout(ctx, w, f, 46 * 0.04);
+    if (k > 0) {
+      ctx.globalAlpha = k; ctx.fillStyle = col; ctx.fillRect(tx, 922, 7, 56);
+      text(ctx, w, tx + 22, 968 + (1 - k) * 16, f, i === 2 ? col : C.white, 'left', 1); ctx.globalAlpha = 1;
+    }
+    return tx + L.width + 76;
+  }, x);
   const t4 = E.outQuint(prog(u, u0 + 0.75, u0 + 1.2));
   if (t4 > 0) {
     text(ctx, 'greybullrescue.org', x + 620, 845, font(46, 700, UI), `rgba(243,246,249,${t4})`);

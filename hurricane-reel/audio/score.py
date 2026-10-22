@@ -91,16 +91,18 @@ def bell(note, length=2.2):
 
 # (take, take start s, take end s, beat the phrase lands on, radio?, text)
 PHRASES = [
-    ("o0", 0.0, 1.95, 0.3, False, "Grey Bull Rescue, this is Olivia."),
-    ("c2", 3.10, 5.31, 3.7, False, "They all say nobody can get out there tonight."),
-    ("bq3", 0.0, 3.10, 7.5, False, "We don't come home until they come home. You in, operator?"),
-    ("b_liftoff", 0.0, 1.95, 13.7, True, "Operator, lift off and head south."),
-    ("b_jackpot_Tom", 2.38, 4.80, 24.5, True, "Jackpot! Jackpot! Jackpot!"),
-    ("o_danger", 0.0, 1.60, 28.6, True, "Water's almost over that roof!"),
-    ("b_full", 0.0, 2.70, 31.5, True, "Helo's full. Bring them back to base, operator."),
-    ("o_all", 0.0, 2.60, 36.6, False, "That's everyone. All fifteen souls saved."),
-    ("b_proud", 0.0, 2.55, 41.0, False, "Proud of you, operator. Welcome to the team."),
-    ("bq4", 1.20, 2.40, 45.6, False, "Don't be a spectator."),
+    ("o0", 0.0, 1.85, 0.3, False, "Grey Bull Rescue, this is Olivia."),
+    ("c2", 4.10, 6.40, 3.5, False, "They all say nobody can get out there tonight."),
+    ("bq3", 0.0, 2.32, 7.4, False, "We don't come home until they come home."),
+    ("bq3", 2.76, 3.82, 11.3, False, "You in, operator?"),
+    ("b_liftoff", 0.0, 2.10, 13.7, True, "Operator, lift off and head south."),
+    ("b_jackpot_Tom", 2.55, 4.45, 24.5, True, "Jackpot! Jackpot! Jackpot!"),
+    ("o_danger", 0.0, 1.72, 28.6, True, "Water's almost over that roof!"),
+    ("b_full", 0.0, 2.62, 31.5, True, "Helo's full. Bring them back to base, operator."),
+    ("o_all", 0.0, 0.92, 36.6, False, "That's everyone."),
+    ("o_all", 1.52, 3.50, 38.3, False, "All fifteen souls saved."),
+    ("b_proud", 0.0, 2.68, 41.8, False, "Proud of you, operator. Welcome to the team."),
+    ("bq4", 1.85, 2.92, 46.6, False, "Don't be a spectator."),
 ]
 
 
