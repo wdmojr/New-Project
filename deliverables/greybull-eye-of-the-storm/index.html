@@ -1523,7 +1523,7 @@ function drawHUD() {
   ctx.fillStyle = fr > 0.5 ? '#5cd68a' : fr > 0.25 ? '#e6c14e' : (Math.sin(F.t * 10) > 0 ? RED : '#7a2a26'); ctx.fill();
   txt('SAFE', 22, 77, 11, '#9fb3c6', 'left', 700); txt(`${F.rescued} / ${survivors.length}`, 62, 77, 13, '#f3f6f9', 'left', 800);
   if (F.lost) txt(`LOST ${F.lost}`, 212, 97, 11, RED, 'right', 900);
-  txt('CABIN', 122, 77, 11, '#9fb3c6', 'left', 700);
+  txt('SEATS', 122, 77, 11, '#9fb3c6', 'left', 700);
   for (let i = 0; i < CAP; i++) { ctx.fillStyle = i < F.cabin.length ? ORANGE : '#2a3a48'; ctx.beginPath(); ctx.arc(172 + i * 11, 73, 4.5, 0, Math.PI * 2); ctx.fill(); }
   txt(`ROPE ${Math.round(F.rope / 3)} ft`, 22, 97, 11, '#9fb3c6', 'left', 700);
   const mx = 300, mw = 360, my = 12;
