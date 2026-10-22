@@ -853,7 +853,7 @@ function drawIntro(t) {
     }
     ctx.globalAlpha = a * clamp((lt - 2.4) / 0.6, 0, 1);
     ctx.fillStyle = ORANGE; ctx.fillRect(VW / 2 - 24, py + 26, 48, 2);
-    txt('BRYAN STERN  ·  FOUNDER, GREY BULL RESCUE', VW / 2, py + 50, 12, ORANGE, 'center', 800);
+    txt('BRYAN STERN  ·  FOUNDER & CHAIRMAN, GREY BULL RESCUE', VW / 2, py + 50, 12, ORANGE, 'center', 800);
     ctx.globalAlpha = 1;
   } else {
     const st = t - INTRO.length * CARD_T;
@@ -1041,7 +1041,7 @@ function drawCallCard(t) {
   txt('RE: PARENTS STRANDED  ·  SIESTA KEY, FL', cx, y + 234, 10, '#ff8f87', 'center', 700, 300);
   button(cx - 110, y + 248, 220, 50, 'ANSWER', () => advanceOps(true), { fill: '#3fbf73', col: '#06120a', size: 20 });
   txt('"We always answer the phone. We always say yes."', cx, y + h + 34, 15, '#dfe6ee', 'center', 500);
-  txt('BRYAN STERN  ·  FOUNDER, GREY BULL RESCUE', cx, y + h + 56, 11, ORANGE, 'center', 800);
+  txt('BRYAN STERN  ·  FOUNDER & CHAIRMAN, GREY BULL RESCUE', cx, y + h + 56, 11, ORANGE, 'center', 800);
 }
 function screenFrame(x, y, w, h) {
   ctx.save(); ctx.shadowColor = 'rgba(80,170,220,0.35)'; ctx.shadowBlur = 30; rr(x - 6, y - 6, w + 12, h + 12, 8); ctx.fillStyle = '#0d141b'; ctx.fill(); ctx.restore();
