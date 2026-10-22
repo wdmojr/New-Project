@@ -5,8 +5,8 @@ import * as M from './lib/motion.js';
 
 const { W, H, E, prog, lerp, clamp, springU, SPRING, font, layout, glyph, text, fill, rrect, zoomAbout, mulberry32 } = M;
 
-// Grey Bull palette: ops-map gold accent, brand red for the ask; Triad colors red / yellow / green
-const C = { ink: '#070C12', white: '#F3F6F9', mist: '#A9B6C3', accent: '#D6A640', red: '#B3262B', mono: '#5FD09A' };
+// Grey Bull palette: red, white, blue and grey (no yellow); Triad colors red / yellow / green on the end card only
+const C = { ink: '#070C12', white: '#F3F6F9', mist: '#A9B6C3', accent: '#E5484D', red: '#B3262B', mono: '#5FD09A' };
 const DISPLAY = 'Display', UI = 'UI';
 
 // Every accent: [beat, label, sfx, opts]. sfx.mjs voices them; the score carries the music hits.
@@ -83,6 +83,37 @@ function flash(ctx, u, u0, k = 3.2, a = 0.85) {
   const v = a * Math.exp(-(u - u0) * k);
   if (v > 0.01) { ctx.fillStyle = `rgba(235,242,255,${v})`; ctx.fillRect(0, 0, W, H); }
 }
+
+
+// The Grey Bull Rescue lockup, rebuilt as vectors from the supplied logo and reversed for a dark ground
+// (white mark and wordmark, brand-red stripes). Same art as the game's title screen. Units: 990 x 260.
+function logoArt(g, t) {
+  const W = C.white, R = '#D42A3A', NAVY = '#1F3A5C', k = (a, b) => clamp((t - a) / (b - a), 0, 1);
+  const eOut = x => 1 - Math.pow(1 - x, 3), eBack = x => { const c = 1.7; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+  const kh = k(0.05, 0.55);
+  g.save(); g.globalAlpha = kh; g.translate(135, 40); g.scale(0.6 + 0.4 * eBack(kh), 1); g.translate(-135, -40);
+  g.fillStyle = W; g.beginPath();
+  g.moveTo(0, 0); g.quadraticCurveTo(30, 50, 80, 50); g.lineTo(190, 50); g.quadraticCurveTo(240, 50, 270, 0);
+  g.quadraticCurveTo(270, 35, 250, 60); g.quadraticCurveTo(230, 80, 190, 80); g.lineTo(80, 80); g.quadraticCurveTo(40, 80, 20, 60); g.quadraticCurveTo(2, 40, 0, 0);
+  g.closePath(); g.fill(); g.restore();
+  const kv = eOut(k(0.35, 0.8));
+  if (kv > 0) { g.save(); g.beginPath(); g.rect(0, 96, 270, 164 * kv + 2); g.clip(); g.fillStyle = W; g.beginPath(); g.moveTo(45, 100); g.lineTo(173, 100); g.lineTo(110, 257); g.closePath(); g.fill(); g.restore(); }
+  [[181, 203, 0.6], [212, 235, 0.72]].forEach(([x0, x1, a]) => {
+    const ks = eOut(k(a, a + 0.35)); if (ks <= 0) return;
+    const off = (1 - ks) * 60;
+    g.save(); g.globalAlpha = ks; g.translate(off * 0.4, -off); g.fillStyle = R; g.beginPath();
+    g.moveTo(x0, 100); g.lineTo(x1, 100); g.lineTo(x1 - 63, 257); g.lineTo(x0 - 63, 257); g.closePath(); g.fill(); g.restore();
+  });
+  const kst = k(0.95, 1.3);
+  if (kst > 0) { g.save(); g.translate(141, 132); g.rotate((1 - kst) * -2.4); g.scale(eBack(kst), eBack(kst)); g.fillStyle = NAVY; g.beginPath();
+    for (let i = 0; i < 10; i++) { const an = -Math.PI / 2 + i * Math.PI / 5, rad = i % 2 ? 6 : 15; g.lineTo(Math.cos(an) * rad, Math.sin(an) * rad); } g.closePath(); g.fill(); g.restore(); }
+  const kw = eOut(k(0.8, 1.45));
+  if (kw > 0) { g.save(); g.beginPath(); g.rect(315, 0, 680 * kw, 205); g.clip(); g.font = '800 196px Stencil'; g.textAlign = 'left'; g.fillStyle = W;
+    g.letterSpacing = '6px'; const fit = 670 / g.measureText('GREY BULL').width; g.translate(318, 182); g.scale(fit, 1); g.fillText('GREY BULL', 0, 0); g.restore(); }
+  const kr = eOut(k(1.3, 1.8));
+  if (kr > 0) { g.save(); g.globalAlpha = kr; g.font = `700 64px ${UI}`; g.textAlign = 'center'; g.fillStyle = W; g.letterSpacing = `${18 + 12 * kr}px`; g.fillText('RESCUE', 655, 255); g.restore(); }
+}
+function drawLogo(ctx, x, y, h, t) { ctx.save(); ctx.translate(x, y); ctx.scale(h / 260, h / 260); logoArt(ctx, t); ctx.restore(); }
 
 // ---------------------------------------------------------------- scenes
 // A kinetic super over a left scrim, in at u0, out at exitU.
@@ -212,6 +243,7 @@ function sceneEnd(ctx, u, IMG) {                                        // b45-5
   glowG.addColorStop(0, 'rgba(246,162,60,0.10)'); glowG.addColorStop(1, 'rgba(246,162,60,0)');
   ctx.fillStyle = glowG; ctx.fillRect(0, 0, W, H);
   const s = M.FORMAT.safe, x = s.x + 24, u0 = 45.4;
+  drawLogo(ctx, W - s.x - 440, 110, 116, (u - u0 + 0.2) * 0.6 * 1.4);
   const rows = [["DON'T BE A SPECTATOR.", C.accent, 76, 250, 0], ['OPERATION', C.white, 150, 420, 0.1], ['HURRICANE', C.white, 230, 630, 0.18]];
   rows.forEach(([w, col, size, base, d]) => {
     const fnt = font(size, 800, DISPLAY), L = layout(ctx, w, fnt, size * 0.012);
@@ -252,7 +284,7 @@ function sceneEnd(ctx, u, IMG) {                                        // b45-5
 // ---------------------------------------------------------------- film
 let grainCv = null;
 M.film({
-  fonts: [font(100, 800, DISPLAY), font(40, 500, UI), font(40, 700, UI)],
+  fonts: [font(100, 800, DISPLAY), font(40, 500, UI), font(40, 700, UI), '800 100px Stencil'],
   images,
   hits: HITS,
   samples: (t) => 10,
