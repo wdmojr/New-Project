@@ -1113,7 +1113,8 @@ function drawOps(t) {
   const tickW = tw(tick, 10, 800), tx0 = R.x - ((t * 50) % tickW);
   for (let x = tx0; x < R.x + R.w; x += tickW) txt(tick, x, R.y + R.h - 5, 10, '#ffd7d2', 'left', 800);
   ctx.restore();
-  panel(R.x + 8, R.y + 8, 300, 40, 6);
+  const hdW = Math.max(tw('HURRICANE HELENE · STORM SURGE · GULF COAST, FL', 10, 800), tw('PRIMARY: TOM & LINDA · SOUTH END OF SIESTA KEY', 10, 800)) + 22;
+  panel(R.x + 8, R.y + 8, Math.min(hdW, R.w - 70), 40, 6);
   txt('HURRICANE HELENE · STORM SURGE · GULF COAST, FL', R.x + 18, R.y + 24, 10, '#ff9a90', 'left', 800);
   txt('PRIMARY: TOM & LINDA · SOUTH END OF SIESTA KEY', R.x + 18, R.y + 40, 10, ORANGE, 'left', 800);
   txt('● LIVE', R.x + R.w - 12, R.y + 22, 10, Math.sin(t * 4) > 0 ? RED : '#7a2a26', 'right', 900);
