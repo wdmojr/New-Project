@@ -804,7 +804,7 @@ function drawTitle(t) {
   ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 24;
   txt('OPERATION HURRICANE', VW / 2, 222, 60, '#f3f6f9', 'center', 900); ctx.restore();
   ctx.fillStyle = ORANGE; ctx.fillRect(VW / 2 - 60, 238, 120, 3);
-  txt("Sarah's parents are stranded at the far end of Siesta Key. Bring them home, and anyone you find on the way.", VW / 2, 270, 17, '#c3cfda', 'center', 500);
+  txt("Americans are trapped on Siesta Key as Hurricane Helene's surge rises. Bring them home.", VW / 2, 270, 17, '#c3cfda', 'center', 500, 880);
   button(VW / 2 - 120, 312, 240, 56, 'START MISSION', () => go('intro'), { size: 20 });
   txt(isTouch ? 'Drag on the left side to fly   ·   Tap the right side to lower the basket' : 'Arrows / WASD to fly   ·   Tap SPACE to lower the rescue basket   ·   M to mute', VW / 2, 398, 14, '#94a3b1', 'center', 500);
   if (isTouch) txt('🔊 Turn your volume up: the crew talks to you on the radio', VW / 2, 488, 13, '#94a3b1', 'center', 600);
@@ -1054,25 +1054,52 @@ function bust(kind, x, y, t, talking) {
   ctx.save(); ctx.translate(x, y + br);
   if (talking) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(0, kind === 'bryan' ? -70 : -50, 110, kind === 'bryan' ? 'rgba(229,72,77,A)' : 'rgba(95,208,154,A)', 0.16); ctx.restore(); }
   if (kind === 'olivia') {
+    // Olivia: long wavy honey-blonde hair worn down, warm smile, black Grey Bull button-up, ops headset
     ctx.fillStyle = '#121a22'; rr(-40, -86, 80, 120, 18); ctx.fill();                                  // chair back
-    ctx.fillStyle = '#6b2f1c'; ctx.beginPath(); ctx.ellipse(2, -58, 21, 27, 0, 0, Math.PI * 2); ctx.fill();   // hair behind
-    ctx.beginPath(); ctx.ellipse(20, -40, 7, 16, -0.4, 0, Math.PI * 2); ctx.fill();                        // ponytail
-    ctx.fillStyle = lgrad(-40, 0, 40, 0, '#2f5868', '#18303b'); ctx.beginPath();                          // fleece
+    const hairG = ctx.createLinearGradient(0, -80, 0, 10); hairG.addColorStop(0, '#9a6636'); hairG.addColorStop(0.35, '#c58e52'); hairG.addColorStop(1, '#ddb06e');
+    const wavy = (side) => {                                                                            // one long wavy fall of hair
+      ctx.beginPath(); ctx.moveTo(side * 6, -76);
+      ctx.quadraticCurveTo(side * 26, -74, side * 24, -50);
+      for (let k = 0; k <= 6; k++) { const yy = -50 + k * 9; ctx.lineTo(side * (25 + Math.sin(k * 1.7 + t * 0.6) * 3 + k * 0.6), yy); }
+      ctx.quadraticCurveTo(side * 22, 10, side * 12, 6);
+      for (let k = 6; k >= 0; k--) { const yy = -50 + k * 8; ctx.lineTo(side * (13 + Math.sin(k * 1.9) * 2), yy); }
+      ctx.closePath(); ctx.fill();
+    };
+    ctx.fillStyle = hairG; ctx.beginPath(); ctx.ellipse(0, -60, 22, 26, 0, 0, Math.PI * 2); ctx.fill(); wavy(-1); wavy(1);   // hair behind
+    ctx.fillStyle = lgrad(-42, 0, 42, 0, '#25282c', '#0f1114'); ctx.beginPath();                         // black button-up
     ctx.moveTo(-42, 40); ctx.quadraticCurveTo(-42, -16, -14, -24); ctx.lineTo(14, -24); ctx.quadraticCurveTo(42, -16, 42, 40); ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, -22); ctx.lineTo(0, 40); ctx.stroke();
-    ctx.fillStyle = '#244652'; ctx.beginPath(); ctx.moveTo(-12, -25); ctx.lineTo(0, -12); ctx.lineTo(12, -25); ctx.lineTo(8, -30); ctx.lineTo(-8, -30); ctx.fill();   // collar
-    ctx.fillStyle = TEAL; rr(-30, -8, 14, 9, 2); ctx.fill(); ctx.fillStyle = '#0b1a1e'; ctx.font = `900 5px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('OPS', -23, -1.5);
-    ctx.fillStyle = '#c9967a'; ctx.fillRect(-6, -36, 12, 12);                                            // neck
-    ctx.fillStyle = lgrad(-15, 0, 15, 0, '#e4b99c', '#b07e62'); ctx.beginPath(); ctx.ellipse(0, -54, 14.5, 18, 0, 0, Math.PI * 2); ctx.fill();   // face
-    ctx.fillStyle = '#2a1a14'; ctx.beginPath(); ctx.ellipse(-5.5, -55, 1.8, 2.2, 0, 0, Math.PI * 2); ctx.ellipse(5.5, -55, 1.8, 2.2, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#5a2a18'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(-9, -60); ctx.lineTo(-3, -61); ctx.moveTo(3, -61); ctx.lineTo(9, -60); ctx.stroke();
-    ctx.fillStyle = '#8a4a3a'; ctx.beginPath(); ctx.ellipse(0, -44, 3.5, mouth * 0.6, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = 'rgba(220,120,100,0.25)'; ctx.beginPath(); ctx.arc(-8, -49, 3, 0, Math.PI * 2); ctx.arc(8, -49, 3, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#7a3820'; ctx.beginPath(); ctx.moveTo(-15, -56); ctx.quadraticCurveTo(-16, -76, 2, -74); ctx.quadraticCurveTo(16, -74, 15, -58); ctx.quadraticCurveTo(8, -68, -4, -66); ctx.quadraticCurveTo(-11, -64, -15, -56); ctx.fill();   // fringe
+    ctx.fillStyle = '#17191c'; ctx.beginPath(); ctx.moveTo(-12, -26); ctx.lineTo(-2, -14); ctx.lineTo(-7, -11); ctx.lineTo(-16, -21); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(12, -26); ctx.lineTo(2, -14); ctx.lineTo(7, -11); ctx.lineTo(16, -21); ctx.fill();
+    ctx.fillStyle = '#d7dbe0'; for (const by of [-6, 4, 14]) { ctx.beginPath(); ctx.arc(0, by, 0.9, 0, Math.PI * 2); ctx.fill(); }
+    ctx.save(); ctx.translate(-27, -8); ctx.scale(0.05, 0.05); ctx.fillStyle = '#f3f6f9';               // Grey Bull mark on the chest
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(30, 50, 80, 50); ctx.lineTo(190, 50); ctx.quadraticCurveTo(240, 50, 270, 0); ctx.quadraticCurveTo(270, 35, 250, 60); ctx.quadraticCurveTo(230, 80, 190, 80); ctx.lineTo(80, 80); ctx.quadraticCurveTo(40, 80, 20, 60); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(45, 100); ctx.lineTo(173, 100); ctx.lineTo(110, 257); ctx.fill();
+    ctx.fillStyle = '#d42a3a'; ctx.beginPath(); ctx.moveTo(181, 100); ctx.lineTo(235, 100); ctx.lineTo(172, 257); ctx.lineTo(118, 257); ctx.fill(); ctx.restore();
+    ctx.fillStyle = '#e6b494'; ctx.fillRect(-6, -36, 12, 12);                                            // neck
+    ctx.fillStyle = lgrad(-15, 0, 15, 0, '#f3c9ab', '#c9906f'); ctx.beginPath(); ctx.ellipse(0, -54, 14.5, 18, 0, 0, Math.PI * 2); ctx.fill();   // face
+    ctx.fillStyle = '#3f5f6a'; ctx.beginPath(); ctx.ellipse(-5.5, -56, 1.7, 1.9, 0, 0, Math.PI * 2); ctx.ellipse(5.5, -56, 1.7, 1.9, 0, 0, Math.PI * 2); ctx.fill();   // blue-grey eyes
+    ctx.strokeStyle = '#4a2e1e'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-8, -57.5); ctx.quadraticCurveTo(-5.5, -59, -3, -57.5); ctx.moveTo(3, -57.5); ctx.quadraticCurveTo(5.5, -59, 8, -57.5); ctx.stroke();   // upper lids
+    ctx.strokeStyle = '#8a5e3c'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(-9, -61); ctx.quadraticCurveTo(-6, -63, -3, -61.5); ctx.moveTo(3, -61.5); ctx.quadraticCurveTo(6, -63, 9, -61); ctx.stroke();
+    ctx.strokeStyle = 'rgba(150,95,70,0.5)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, -53); ctx.lineTo(-1.3, -48.5); ctx.lineTo(1, -48); ctx.stroke();   // nose
+    // big warm smile; opens when she talks
+    ctx.fillStyle = '#9a4a3c'; ctx.beginPath(); ctx.moveTo(-6, -44.5); ctx.quadraticCurveTo(0, -38.5 - mouth * 0.6, 6, -44.5); ctx.quadraticCurveTo(0, -42.5, -6, -44.5); ctx.fill();
+    ctx.fillStyle = '#f7f3ee'; ctx.beginPath(); ctx.moveTo(-5, -44.2); ctx.quadraticCurveTo(0, -41.6, 5, -44.2); ctx.quadraticCurveTo(0, -43, -5, -44.2); ctx.fill();
+    ctx.fillStyle = 'rgba(230,120,100,0.28)'; ctx.beginPath(); ctx.arc(-9, -48, 3.2, 0, Math.PI * 2); ctx.arc(9, -48, 3.2, 0, Math.PI * 2); ctx.fill();
+    // front hair: side part, waves falling over both shoulders
+    ctx.fillStyle = hairG; ctx.beginPath(); ctx.moveTo(-16, -50); ctx.quadraticCurveTo(-18, -76, 3, -74); ctx.quadraticCurveTo(17, -73, 16, -52);
+    ctx.quadraticCurveTo(12, -66, 2, -67); ctx.quadraticCurveTo(-9, -65, -16, -50); ctx.fill();
+    ctx.fillStyle = 'rgba(240,205,140,0.55)'; ctx.beginPath(); ctx.moveTo(-6, -72); ctx.quadraticCurveTo(-12, -66, -14, -56); ctx.lineTo(-12, -57); ctx.quadraticCurveTo(-9, -66, -3, -71); ctx.fill();   // highlight
+    for (const sd of [-1, 1]) {
+      ctx.fillStyle = hairG; ctx.beginPath(); ctx.moveTo(sd * 13, -58);
+      for (let k = 0; k <= 5; k++) ctx.lineTo(sd * (16 + Math.sin(k * 2.1 + t * 0.7 + sd) * 2.5), -50 + k * 8);
+      ctx.quadraticCurveTo(sd * 22, -4, sd * 26, -8);
+      for (let k = 5; k >= 0; k--) ctx.lineTo(sd * (23 + Math.sin(k * 1.6) * 2), -50 + k * 8);
+      ctx.quadraticCurveTo(sd * 22, -60, sd * 13, -58); ctx.fill();
+    }
     ctx.strokeStyle = '#1d2a30'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, -56, 18, Math.PI * 1.08, Math.PI * 1.92); ctx.stroke();   // headset band
     ctx.fillStyle = '#1d2a30'; rr(-20, -60, 6, 12, 2); ctx.fill(); ctx.fillStyle = TEAL; ctx.fillRect(-19, -58, 4, 2);
-    ctx.strokeStyle = '#1d2a30'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(-17, -50); ctx.quadraticCurveTo(-14, -42, -5, -43); ctx.stroke();
-    if (talking) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(-5, -43, 5, 'rgba(95,208,154,A)', 0.9); ctx.restore(); }
+    ctx.strokeStyle = '#1d2a30'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(-17, -50); ctx.quadraticCurveTo(-14, -42, -8, -42); ctx.stroke();
+    if (talking) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(-8, -42, 5, 'rgba(95,208,154,A)', 0.9); ctx.restore(); }
   } else {
     // Bryan: olive Grey Bull ball cap, black Grey Bull polo, full beard dark at the mustache going grey-white at the chin
     ctx.fillStyle = lgrad(-50, 0, 50, 0, '#24272b', '#0e1013'); ctx.beginPath();                          // black polo, broad shoulders
