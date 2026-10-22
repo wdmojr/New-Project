@@ -10,7 +10,7 @@
 a ticking pulse under Sarah and Bryan, a riser into the drop at b13 ("You in, operator?"), a
 driving groove for the whole flight, a sting on JACKPOT, and a D-major resolve on the end card.
 
-Reads  hurricane-reel/audio/vo/*.wav (the game's Piper voice lines)
+Reads  hurricane-reel/audio/vo/*.wav (the game's ElevenLabs voice lines) and audio/ring.wav
 Writes hurricane-reel/audio/music.wav, vo.wav, hurricane-reel/beats.json
 """
 import json
@@ -152,7 +152,9 @@ def main():
     # ---- the call b0-7.4: storm drone, phone ring, Olivia answers, Sarah's plea over a ticking pulse
     music.add(pad_chord(["D2", "A2", "D3"], T(7.6), (160, 700), attack=0.02, release=0.6), 0, 0.5)
     fx.add(thunder(3.4, 0.9), 0, 0.6)
-    fx.add(ring(0.9), 0, 0.2, pan=0.15)
+    # the call: the game's recorded desk-phone ring (ElevenLabs sound effect), one burst of two trills
+    rg, _ = librosa.load(HERE / "ring.wav", sr=SR, mono=True)
+    fx.add(np.concatenate([rg, rg]) * 0.9, 0, 0.32, pan=0.15)
     music.add(pad_chord(Dm, T(7.6), 650, attack=0.4, release=0.5), 2, 0.3)
     for b in np.arange(2, 13, 0.5):
         drums.add(hat(), b, 0.05 if b % 1 else 0.08, pan=0.25)

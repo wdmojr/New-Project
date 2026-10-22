@@ -1074,23 +1074,45 @@ function bust(kind, x, y, t, talking) {
     ctx.strokeStyle = '#1d2a30'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(-17, -50); ctx.quadraticCurveTo(-14, -42, -5, -43); ctx.stroke();
     if (talking) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(-5, -43, 5, 'rgba(95,208,154,A)', 0.9); ctx.restore(); }
   } else {
-    ctx.fillStyle = lgrad(-46, 0, 46, 0, '#565b42', '#2e3124'); ctx.beginPath();                          // shirt + shoulders
-    ctx.moveTo(-50, 50); ctx.quadraticCurveTo(-50, -30, -16, -40); ctx.lineTo(16, -40); ctx.quadraticCurveTo(50, -30, 50, 50); ctx.fill();
-    ctx.fillStyle = lgrad(-34, 0, 34, 0, '#3a3e2c', '#22251a'); rr(-34, -30, 68, 80, 8); ctx.fill();          // plate carrier
-    ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1; for (let yy = -12; yy < 40; yy += 7) { ctx.beginPath(); ctx.moveTo(-26, yy); ctx.lineTo(26, yy); ctx.stroke(); }
-    ctx.fillStyle = '#b22234'; ctx.fillRect(-28, -24, 18, 11); ctx.fillStyle = '#fff'; for (let k = 0; k < 3; k++) ctx.fillRect(-28, -22 + k * 3.4, 18, 1.4); ctx.fillStyle = '#3c3b6e'; ctx.fillRect(-28, -24, 8, 6);   // flag patch
-    ctx.fillStyle = ORANGE; rr(10, -24, 18, 11, 2); ctx.fill(); ctx.fillStyle = '#1a1206'; ctx.font = `900 5px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('GBR', 19, -16.5);
-    ctx.fillStyle = '#1a1c16'; ctx.fillRect(30, -46, 3, 20); ctx.fillStyle = '#2a2d22'; rr(26, -30, 10, 16, 2); ctx.fill();   // radio on shoulder
-    ctx.fillStyle = '#b8876a'; ctx.fillRect(-7, -54, 14, 16);                                             // neck
+    // Bryan: olive Grey Bull ball cap, black Grey Bull polo, full beard dark at the mustache going grey-white at the chin
+    ctx.fillStyle = lgrad(-50, 0, 50, 0, '#24272b', '#0e1013'); ctx.beginPath();                          // black polo, broad shoulders
+    ctx.moveTo(-52, 50); ctx.quadraticCurveTo(-52, -28, -17, -38); ctx.lineTo(17, -38); ctx.quadraticCurveTo(52, -28, 52, 50); ctx.fill();
+    ctx.fillStyle = '#16181b'; ctx.beginPath(); ctx.moveTo(-15, -40); ctx.lineTo(-2, -24); ctx.lineTo(-9, -20); ctx.lineTo(-20, -34); ctx.fill();   // collar
+    ctx.beginPath(); ctx.moveTo(15, -40); ctx.lineTo(2, -24); ctx.lineTo(9, -20); ctx.lineTo(20, -34); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, -24); ctx.lineTo(0, 4); ctx.stroke();   // placket
+    ctx.fillStyle = '#d7dbe0'; for (const by of [-16, -6]) { ctx.beginPath(); ctx.arc(0, by, 1, 0, Math.PI * 2); ctx.fill(); }
+    // white Grey Bull mark on the left chest: horns, V, red stripes
+    ctx.save(); ctx.translate(-31, -30); ctx.scale(0.075, 0.075); ctx.fillStyle = '#f3f6f9';
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(30, 50, 80, 50); ctx.lineTo(190, 50); ctx.quadraticCurveTo(240, 50, 270, 0); ctx.quadraticCurveTo(270, 35, 250, 60); ctx.quadraticCurveTo(230, 80, 190, 80); ctx.lineTo(80, 80); ctx.quadraticCurveTo(40, 80, 20, 60); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(45, 100); ctx.lineTo(173, 100); ctx.lineTo(110, 257); ctx.fill();
+    ctx.fillStyle = '#d42a3a'; ctx.beginPath(); ctx.moveTo(181, 100); ctx.lineTo(235, 100); ctx.lineTo(172, 257); ctx.lineTo(118, 257); ctx.fill(); ctx.restore();
+    ctx.fillStyle = '#f3f6f9'; ctx.font = `800 4.5px ${DISPLAY}`; ctx.textAlign = 'left'; ctx.fillText('GREY BULL', -41, -6); ctx.font = `700 2.6px ${FONT}`; ctx.fillText('RESCUE', -37, -2.5);
+    ctx.fillStyle = '#c9967c'; ctx.fillRect(-8, -54, 16, 16);                                             // neck
     const turn = Math.sin(t * 0.5) * 1.5;
-    ctx.fillStyle = lgrad(-16, 0, 16, 0, '#d8a888', '#9c6c50'); ctx.beginPath(); ctx.ellipse(turn, -72, 15.5, 19, 0, 0, Math.PI * 2); ctx.fill();   // face
-    ctx.fillStyle = '#4b3a2c'; ctx.beginPath(); ctx.moveTo(-15 + turn, -70); ctx.quadraticCurveTo(-15 + turn, -50, turn, -50); ctx.quadraticCurveTo(15 + turn, -50, 15 + turn, -70); ctx.quadraticCurveTo(8 + turn, -60, turn, -61); ctx.quadraticCurveTo(-8 + turn, -60, -15 + turn, -70); ctx.fill();   // beard
-    ctx.fillStyle = '#1a1410'; ctx.beginPath(); ctx.ellipse(-5.5 + turn, -75, 1.9, 2, 0, 0, Math.PI * 2); ctx.ellipse(5.5 + turn, -75, 1.9, 2, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#3a2c20'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-10 + turn, -80); ctx.lineTo(-3 + turn, -79); ctx.moveTo(3 + turn, -79); ctx.lineTo(10 + turn, -80); ctx.stroke();
-    ctx.fillStyle = '#2a1c14'; ctx.beginPath(); ctx.ellipse(turn, -61, 4, mouth * 0.55, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#1f2328'; ctx.beginPath(); ctx.ellipse(turn, -84, 17, 11, 0, Math.PI, Math.PI * 2); ctx.fill();   // cap
-    ctx.fillRect(turn - 17, -85, 34, 4); ctx.beginPath(); ctx.ellipse(turn + 12, -82, 13, 3, 0.05, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = ORANGE; ctx.fillRect(turn - 4, -92, 8, 4);
+    ctx.fillStyle = '#d9a68a'; ctx.beginPath(); ctx.ellipse(-16.5 + turn, -71, 3, 5, 0, 0, Math.PI * 2); ctx.ellipse(16.5 + turn, -71, 3, 5, 0, 0, Math.PI * 2); ctx.fill();   // ears
+    ctx.fillStyle = lgrad(-16, 0, 16, 0, '#ecc0a4', '#bb876b'); ctx.beginPath(); ctx.ellipse(turn, -71, 16, 19.5, 0, 0, Math.PI * 2); ctx.fill();   // face (fair)
+    ctx.fillStyle = '#8f8a86'; ctx.beginPath(); ctx.moveTo(-16 + turn, -80); ctx.lineTo(-13 + turn, -80); ctx.lineTo(-13.5 + turn, -66); ctx.lineTo(-16.5 + turn, -68); ctx.fill();   // grey temples
+    ctx.beginPath(); ctx.moveTo(16 + turn, -80); ctx.lineTo(13 + turn, -80); ctx.lineTo(13.5 + turn, -66); ctx.lineTo(16.5 + turn, -68); ctx.fill();
+    // full beard: dark brown up top, grey-white through the chin, hangs below the jaw
+    const bg = ctx.createRadialGradient(turn, -45, 1, turn, -58, 18); bg.addColorStop(0, '#d2cdc6'); bg.addColorStop(0.35, '#9d978f'); bg.addColorStop(0.7, '#4e4239'); bg.addColorStop(1, '#33261d');
+    ctx.fillStyle = bg; ctx.beginPath();
+    ctx.moveTo(-16 + turn, -72); ctx.quadraticCurveTo(-17 + turn, -54, -9 + turn, -48); ctx.quadraticCurveTo(turn, -43, 9 + turn, -48); ctx.quadraticCurveTo(17 + turn, -54, 16 + turn, -72);
+    ctx.quadraticCurveTo(11 + turn, -63, 6 + turn, -64); ctx.lineTo(-6 + turn, -64); ctx.quadraticCurveTo(-11 + turn, -63, -16 + turn, -72); ctx.fill();
+    ctx.fillStyle = '#2c2119'; ctx.beginPath(); ctx.moveTo(-8 + turn, -63.5); ctx.quadraticCurveTo(turn, -67, 8 + turn, -63.5); ctx.quadraticCurveTo(5 + turn, -60, turn, -61.5); ctx.quadraticCurveTo(-5 + turn, -60, -8 + turn, -63.5); ctx.fill();   // mustache
+    ctx.fillStyle = '#2a1c16'; ctx.beginPath(); ctx.ellipse(turn, -58.5, 3.6, mouth * 0.5, 0, 0, Math.PI * 2); ctx.fill();   // mouth
+    ctx.fillStyle = '#1e1612'; ctx.beginPath(); ctx.ellipse(-5.5 + turn, -74, 1.8, 1.5, 0, 0, Math.PI * 2); ctx.ellipse(5.5 + turn, -74, 1.8, 1.5, 0, 0, Math.PI * 2); ctx.fill();   // eyes, a little heavy-lidded
+    ctx.strokeStyle = 'rgba(120,80,60,0.6)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-8 + turn, -75.5); ctx.lineTo(-3 + turn, -75.5); ctx.moveTo(3 + turn, -75.5); ctx.lineTo(8 + turn, -75.5); ctx.stroke();
+    ctx.strokeStyle = '#2e241d'; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.moveTo(-10 + turn, -79); ctx.lineTo(-3 + turn, -78); ctx.moveTo(3 + turn, -78); ctx.lineTo(10 + turn, -79); ctx.stroke();   // brows
+    ctx.strokeStyle = 'rgba(140,90,70,0.5)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(turn, -73); ctx.lineTo(-1.5 + turn, -67); ctx.lineTo(1 + turn, -66.5); ctx.stroke();   // nose
+    // olive Grey Bull ball cap with the logo and wordmark on the front panel
+    ctx.fillStyle = lgrad(-18, 0, 18, 0, '#6b7650', '#4a5236'); ctx.beginPath(); ctx.ellipse(turn, -83, 18, 13, 0, Math.PI, Math.PI * 2); ctx.fill();
+    ctx.fillRect(turn - 18, -84, 36, 4);
+    ctx.fillStyle = '#545e3c'; ctx.beginPath(); ctx.ellipse(turn + 2, -80, 19, 3.6, 0.03, 0, Math.PI * 2); ctx.fill();   // brim
+    ctx.fillStyle = '#e8ebe2'; ctx.font = `800 5px ${DISPLAY}`; ctx.textAlign = 'center'; ctx.fillText('GREY BULL', turn, -85.5);
+    ctx.save(); ctx.translate(turn - 3, -94); ctx.scale(0.022, 0.022); ctx.fillStyle = '#e8ebe2';
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(30, 50, 80, 50); ctx.lineTo(190, 50); ctx.quadraticCurveTo(240, 50, 270, 0); ctx.quadraticCurveTo(270, 35, 250, 60); ctx.quadraticCurveTo(230, 80, 190, 80); ctx.lineTo(80, 80); ctx.quadraticCurveTo(40, 80, 20, 60); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(45, 100); ctx.lineTo(235, 100); ctx.lineTo(140, 257); ctx.fill(); ctx.restore();
+    ctx.fillStyle = '#1a1c16'; ctx.fillRect(34, -42, 3, 16); ctx.fillStyle = '#2a2d22'; rr(30, -28, 10, 15, 2); ctx.fill();   // radio on the shoulder
   }
   ctx.restore();
 }
