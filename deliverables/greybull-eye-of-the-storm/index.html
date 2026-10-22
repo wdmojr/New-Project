@@ -6,7 +6,7 @@
 <title>Operation Hurricane</title>
 <style>
   html,body{margin:0;height:100%;background:#05080c;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
-  canvas{display:block;width:100vw;height:100vh}
+  canvas{display:block;width:100vw;height:100vh;touch-action:none}
 </style>
 </head>
 <body>
@@ -84,7 +84,6 @@ const audio = {
 
 // ---------------------------------------------------------------- input ----
 const keys = {};
-const pointers = new Map();
 let mouse = null, isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 function toV(e) { return { x: (e.clientX - ox) / scale, y: (e.clientY - oy) / scale }; }
 addEventListener('keydown', e => {
@@ -93,28 +92,37 @@ addEventListener('keydown', e => {
   if (!keys[e.code]) { keys[e.code] = true; onPress(e.code); }
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
-addEventListener('blur', () => { for (const k in keys) keys[k] = false; pointers.clear(); });
-cv.addEventListener('pointerdown', e => {
-  audio.init();
-  if (e.pointerType === 'touch') isTouch = true;
-  const p = toV(e); pointers.set(e.pointerId, p); mouse = p; onClick(p.x, p.y);
-});
-cv.addEventListener('pointermove', e => { const p = toV(e); mouse = p; if (pointers.has(e.pointerId)) pointers.set(e.pointerId, p); });
-['pointerup', 'pointercancel', 'pointerleave'].forEach(t => cv.addEventListener(t, e => pointers.delete(e.pointerId)));
-
-const TB = {
-  up: { x: 92, y: 360, w: 68, h: 68 }, left: { x: 18, y: 434, w: 68, h: 68 },
-  down: { x: 92, y: 434, w: 68, h: 68 }, right: { x: 166, y: 434, w: 68, h: 68 },
-  hoist: { x: 808, y: 392, w: 120, h: 120 }
-};
-function held(name) {
-  const r = TB[name];
-  for (const p of pointers.values()) if (p.x > r.x && p.x < r.x + r.w && p.y > r.y && p.y < r.y + r.h) return true;
-  return false;
+cv.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') return; audio.init(); const p = toV(e); mouse = p; onClick(p.x, p.y); });
+cv.addEventListener('pointermove', e => { if (e.pointerType !== 'touch') mouse = toV(e); });
+// Touch: drag anywhere on the left half to fly (virtual joystick); hold anywhere on the right half to lower the basket.
+const stick = { id: null, ox: 0, oy: 0, x: 0, y: 0 }, STICK_R = 60;
+const hoistTouches = new Set();
+function onTouchStart(e) {
+  e.preventDefault(); audio.init(); isTouch = true;
+  for (const t of e.changedTouches) {
+    const p = toV(t);
+    if (scene !== 'fly' || ui.some(b => p.x > b.x && p.x < b.x + b.w && p.y > b.y && p.y < b.y + b.h)) { onClick(p.x, p.y); continue; }
+    if (p.x < VW * 0.5) { if (stick.id === null) { stick.id = t.identifier; stick.ox = stick.x = p.x; stick.oy = stick.y = p.y; } }
+    else hoistTouches.add(t.identifier);
+  }
 }
-const inX = () => ((keys.ArrowRight || keys.KeyD || held('right')) ? 1 : 0) - ((keys.ArrowLeft || keys.KeyA || held('left')) ? 1 : 0);
-const inY = () => ((keys.ArrowDown || keys.KeyS || held('down')) ? 1 : 0) - ((keys.ArrowUp || keys.KeyW || held('up')) ? 1 : 0);
-const inHoist = () => !!(keys.Space || held('hoist'));
+function onTouchMove(e) { e.preventDefault(); for (const t of e.changedTouches) if (t.identifier === stick.id) { const p = toV(t); stick.x = p.x; stick.y = p.y; } }
+function onTouchEnd(e) { e.preventDefault(); for (const t of e.changedTouches) { if (t.identifier === stick.id) stick.id = null; hoistTouches.delete(t.identifier); } }
+cv.addEventListener('touchstart', onTouchStart, { passive: false });
+cv.addEventListener('touchmove', onTouchMove, { passive: false });
+cv.addEventListener('touchend', onTouchEnd, { passive: false });
+cv.addEventListener('touchcancel', onTouchEnd, { passive: false });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; stick.id = null; hoistTouches.clear(); });
+function stickVec() {
+  if (stick.id === null) return [0, 0];
+  let dx = (stick.x - stick.ox) / STICK_R, dy = (stick.y - stick.oy) / STICK_R; const m = Math.hypot(dx, dy);
+  if (m > 1) { dx /= m; dy /= m; }
+  const dz = v => Math.abs(v) < 0.2 ? 0 : v;
+  return [dz(dx), dz(dy)];
+}
+const inX = () => (((keys.ArrowRight || keys.KeyD) ? 1 : 0) - ((keys.ArrowLeft || keys.KeyA) ? 1 : 0)) || stickVec()[0];
+const inY = () => (((keys.ArrowDown || keys.KeyS) ? 1 : 0) - ((keys.ArrowUp || keys.KeyW) ? 1 : 0)) || stickVec()[1];
+const inHoist = () => !!(keys.Space || hoistTouches.size);
 
 // -------------------------------------------------------------- helpers ----
 function rr(x, y, w, h, r) {
@@ -192,7 +200,7 @@ function post() {
 
 // ---------------------------------------------------------- scene mgmt ----
 let scene = 'title', sceneT = 0;
-function go(s) { scene = s; sceneT = 0; if (s === 'ops') { opsIdx = 0; opsT = 0; audio.ring(); } if (s === 'fly') initFly(); }
+function go(s) { scene = s; sceneT = 0; if (s !== 'fly') WATER_Y = WATER0; if (s === 'ops') { opsIdx = 0; opsT = 0; audio.ring(); } if (s === 'fly') initFly(); }
 function onPress(code) {
   if (code === 'KeyM') { audio.toggle(); return; }
   const adv = code === 'Space' || code === 'Enter';
@@ -294,7 +302,9 @@ function drawSky(cam, t) {
 }
 
 // ------------------------------------------------------------ world art ----
-const WORLD_W = 4300, WATER_Y = 468, BASE_W = 470, GROUND_Y = 420;
+const WORLD_W = 4300, WATER0 = 468, BASE_W = 470, GROUND_Y = 420;
+let WATER_Y = WATER0; // the floodwater rises as the storm surge builds
+const STORM_TIME = 420, CAP = 5;
 const HOUSES = [
   { x: 820, y: 392, w: 170, c: [176, 122, 106] },
   { x: 1080, y: 432, w: 110, c: [120, 145, 163] },
@@ -302,7 +312,8 @@ const HOUSES = [
   { x: 2250, y: 232, w: 230, c: [156, 154, 146], condo: true },
   { x: 2880, y: 418, w: 130, c: [179, 162, 115] },
   { x: 3200, y: 378, w: 170, c: [169, 133, 145] },
-  { x: 3720, y: 405, w: 150, c: [125, 159, 146] }
+  { x: 3720, y: 405, w: 150, c: [125, 159, 146] },
+  { x: 4010, y: 372, w: 150, c: [176, 122, 106] }
 ];
 const PALMS = [{ x: 1290, h: 150 }, { x: 2040, h: 170 }, { x: 3580, h: 160 }];
 const TENT = { x: 50, y: 372, w: 110, h: 48 };
@@ -316,16 +327,24 @@ const BASKET_SOLIDS = [...SOLIDS, TENT, TRUCK, { x: -50, y: GROUND_Y, w: BASE_W 
 const DEBRIS = [
   { x: 640, k: 'sign', t: 'OCEAN BLVD' }, { x: 1020, k: 'barrel' }, { x: 1235, k: 'car', c: '#7a2a2a' }, { x: 1420, k: 'plank' },
   { x: 1790, k: 'sign', t: 'BEACH RD' }, { x: 1950, k: 'car', c: '#2b466b' }, { x: 2620, k: 'barrel' }, { x: 2770, k: 'cooler' },
-  { x: 3080, k: 'plank' }, { x: 3460, k: 'car', c: '#b9b9b9' }, { x: 3960, k: 'sign', t: 'MIDNIGHT PASS RD' }, { x: 4120, k: 'barrel' }
+  { x: 3080, k: 'plank' }, { x: 3460, k: 'car', c: '#b9b9b9' }, { x: 3935, k: 'sign', t: 'MIDNIGHT PASS RD' }, { x: 4230, k: 'barrel' }
 ];
 const SURV_DEF = [
-  { name: 'Tom', x: 868, house: 0, jackpot: true, shirt: '#e2574c' },
-  { name: 'Linda', x: 940, house: 0, jackpot: true, shirt: '#f2c14e' },
-  { name: 'Marcus', x: 1565, house: 2, shirt: '#4fa3e0' },
-  { name: 'Ana', x: 2300, house: 3, shirt: '#9b6be0' },
-  { name: 'Jay', x: 2420, house: 3, shirt: '#5cc48a' },
-  { name: 'Rosa', x: 3250, house: 5, shirt: '#e07bb0' },
-  { name: 'Leo, 8', x: 3318, house: 5, shirt: '#f29a3a', kid: true }
+  { name: 'Tom', x: 850, house: 0, jackpot: true, shirt: '#e2574c' },
+  { name: 'Linda', x: 905, house: 0, jackpot: true, shirt: '#f2c14e' },
+  { name: 'Max, 6', x: 958, house: 0, shirt: '#5cc48a', kid: true },
+  { name: 'Marcus', x: 1535, house: 2, shirt: '#4fa3e0' },
+  { name: 'Dee', x: 1598, house: 2, shirt: '#e0a04f' },
+  { name: 'Ana', x: 2290, house: 3, shirt: '#9b6be0' },
+  { name: 'Jay', x: 2345, house: 3, shirt: '#5cc48a' },
+  { name: 'Priya', x: 2400, house: 3, shirt: '#e2574c' },
+  { name: 'Sam', x: 2452, house: 3, shirt: '#4fa3e0' },
+  { name: 'Rosa', x: 3232, house: 5, shirt: '#e07bb0' },
+  { name: 'Leo, 8', x: 3288, house: 5, shirt: '#f29a3a', kid: true },
+  { name: 'Mia, 5', x: 3342, house: 5, shirt: '#9be0d0', kid: true },
+  { name: 'Walt', x: 3765, house: 6, shirt: '#c9c9c9' },
+  { name: 'June', x: 3830, house: 6, shirt: '#e07bb0' },
+  { name: 'Carlos', x: 4085, house: 7, shirt: '#e2574c' }
 ];
 const waveY = (x, t) => WATER_Y + Math.sin(x * 0.03 + t * 2.2) * 3 + Math.sin(x * 0.011 - t * 1.3) * 4 + Math.sin(x * 0.07 + t * 4) * 1.2;
 function surfaceAt(x) {
@@ -348,9 +367,9 @@ function drawHouse(hs, t, idx) {
   ctx.stroke();
   ctx.fillStyle = 'rgba(52,40,26,0.35)'; ctx.fillRect(hs.x, WATER_Y - 26, hs.w, 26);
   if (hs.condo) {
-    const rows = Math.floor((WATER_Y - top - 20) / 40);
+    const rows = Math.floor((WATER0 - top - 30) / 40);
     for (let r = 0; r < rows; r++) {
-      const y = top + 18 + r * 40;
+      const y = top + 26 + r * 40;
       for (let c = 0; c < 4; c++) {
         const wx = hs.x + 14 + c * 54, lit = hash(idx * 7 + r * 13 + c) > 0.86;
         ctx.fillStyle = '#0c131a'; ctx.fillRect(wx, y, 40, 26);
@@ -363,10 +382,7 @@ function drawHouse(hs, t, idx) {
       for (let k = 0; k < hs.w; k += 7) { ctx.moveTo(hs.x - 4 + k, y + 18); ctx.lineTo(hs.x - 4 + k, y + 28); }
       ctx.stroke();
     }
-    ctx.fillStyle = '#20262c'; ctx.fillRect(hs.x + 150, top - 34, 4, 30); ctx.fillRect(hs.x + 176, top - 34, 4, 30);
-    ctx.save(); ctx.translate(hs.x + 165, top - 42); ctx.rotate(0.1);
-    rr(-44, -14, 88, 22, 3); ctx.fillStyle = '#1c3542'; ctx.fill();
-    txt('GULF VIEW', 0, 2, 12, LIT.flash > 0.3 ? '#f6dfa0' : '#8f8466', 'center', 900); ctx.restore();
+    txt('GULF VIEW', hs.x + hs.w / 2, top + 13, 11, LIT.flash > 0.3 ? '#f6dfa0' : 'rgba(220,210,180,0.55)', 'center', 900);
   } else {
     const cols = Math.max(1, Math.floor((hs.w - 24) / 36));
     for (let r = 0; hs.y + 20 + r * 46 < WATER_Y - 10; r++) for (let c = 0; c < cols; c++) {
@@ -393,7 +409,7 @@ function drawHouse(hs, t, idx) {
   ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(hs.x - 4, top + 1, hs.w + 8, 3);
 }
 function drawPalm(p, t) {
-  const base = WATER_Y + 20, top = WATER_Y - p.h, sway = windNow * 0.2 + Math.sin(t * 3.2 + p.x) * 4;
+  const base = WATER0 + 20, top = WATER0 - p.h, sway = windNow * 0.2 + Math.sin(t * 3.2 + p.x) * 4;
   const tx = p.x + sway * 0.6, ty = top + Math.abs(sway) * 0.05;
   ctx.lineCap = 'round';
   ctx.strokeStyle = '#3a3026'; ctx.lineWidth = 10; ctx.beginPath(); ctx.moveTo(p.x, base); ctx.quadraticCurveTo(p.x + sway * 0.05, top + p.h * 0.5, tx, ty); ctx.stroke();
@@ -627,9 +643,10 @@ function drawTitle(t) {
   ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 24;
   txt('OPERATION HURRICANE', VW / 2, 222, 60, '#f3f6f9', 'center', 900); ctx.restore();
   ctx.fillStyle = ORANGE; ctx.fillRect(VW / 2 - 60, 238, 120, 3);
-  txt('Hurricane storm surge has flooded Florida\'s Gulf Coast. 911 is overwhelmed. Families need help now.', VW / 2, 270, 17, '#c3cfda', 'center', 500);
+  txt('15 lives on the rooftops. One helicopter. Beat the storm surge before it peaks.', VW / 2, 270, 17, '#c3cfda', 'center', 500);
   button(VW / 2 - 120, 300, 240, 56, 'START MISSION', () => go('ops'), { size: 20 });
-  txt('Arrows / WASD to fly   ·   Hold SPACE to lower the rescue basket   ·   M to mute', VW / 2, 392, 14, '#94a3b1', 'center', 500);
+  txt(isTouch ? 'Drag on the left side to fly   ·   Hold the right side to lower the basket' : 'Arrows / WASD to fly   ·   Hold SPACE to lower the rescue basket   ·   M to mute', VW / 2, 392, 14, '#94a3b1', 'center', 500);
+  if (innerHeight > innerWidth) { panel(VW / 2 - 190, 420, 380, 40, 20, ORANGE); txt('Turn your phone sideways for the best view', VW / 2, 446, 15, '#f3f6f9', 'center', 700); }
   txt('Concept prototype  ·  Dramatized from real Grey Bull Rescue hurricane responses  ·  Not an official Grey Bull Rescue product', VW / 2, 520, 12, '#66747f', 'center', 500);
 }
 
@@ -698,10 +715,10 @@ const SCRIPT = [
   { who: 'CALLER', text: "Please, my mom and dad are on Siesta Key. The water is up to the second floor and 911 just keeps ringing." },
   { who: 'OLIVIA', text: "Sarah, we've got you. Give me Tom and Linda's address. We are going to find them." },
   { who: 'OLIVIA', text: "Ops floor, listen up. Hurricane Helene's storm surge is flooding the Gulf Coast from Tampa to Sarasota. Power is out and cell towers are down." },
-  { who: 'OLIVIA', text: "First responders are overwhelmed and can't reach some neighborhoods. Families are calling in now." },
+  { who: 'OLIVIA', text: "We have 15 lives to save on Siesta Key rooftops. The surge peaks in about 7 minutes. After that the water keeps rising and the winds will ground the helo." },
   { who: 'OLIVIA', text: "I'm activating the team. Bryan, you're up." },
   { who: 'BRYAN', text: "Copy, Olivia. Rolling in sixty. We'll stand up a forward base on high ground, get Starlink running and put the helo up." },
-  { who: 'BRYAN', text: 'Helo crew takes the rooftops. Nobody gets left behind.' },
+  { who: 'BRYAN', text: 'Fifteen lives, seven minutes. Helo crew takes the rooftops. Nobody gets left behind.' },
   { who: 'OLIVIA', text: 'Operation HURRICANE is a go. Bring them home.' }
 ];
 let opsIdx = 0, opsT = 0;
@@ -868,12 +885,11 @@ function drawDeploy(t) {
 }
 
 // ------------------------------------------------------------ fly logic ----
-const CAP = 3;
 let F = null, survivors = [];
 function initFly() {
   survivors = SURV_DEF.map((s, i) => ({ ...s, roofY: HOUSES[s.house].y, state: 'roof', phase: i * 1.7 }));
   const fuelMax = has('fuel') ? 150 : 100;
-  PARTS = [];
+  PARTS = []; WATER_Y = WATER0;
   F = {
     t: 0, heli: { x: 260, y: GROUND_Y - 17, vx: 0, vy: 0, face: 1, landed: true },
     rope: 0, basket: { x: 260, y: GROUND_Y - 9, vx: 0, vy: 0, load: null, grounded: false },
@@ -881,9 +897,9 @@ function initFly() {
     wind: 0, gust: 0, gustT: 9, gustDir: 1, gustWarned: false,
     cam: 0, msgs: [], msg: null, msgT: 0, board: 0, beam: 0.3,
     abortT: 0, abortMsg: '', jackpotT: 0, jackpotDone: false, unloadT: 0, walkers: [], floats: [],
-    lowFuel: false, fullWarned: false, endT: 0, banner: null
+    lowFuel: false, fullWarned: false, endT: 0, banner: null, bumps: 0, bumpCD: 0, over: false, saved: 0, warned: {}
   };
-  radio('OLIVIA', `Helo 1, Ops. ${survivors.length} people stranded on rooftops east of the base. Tom and Linda are on the first roof. Bring them home.`);
+  radio('OLIVIA', `Helo 1, Ops. ${survivors.length} lives on rooftops east of the base. Surge peaks in ${STORM_TIME / 60} minutes. Tom and Linda are on the first roof.`);
   radio('BRYAN', 'Copy. Lifting off. Watch the gusts out there.');
 }
 function radio(who, text) { F.msgs.push({ who, text }); }
@@ -898,15 +914,33 @@ function resetToBase() {
   b.x = h.x; b.y = h.y + 8; b.vx = b.vy = 0; F.board = 0;
   F.fuel = Math.max(F.fuel, F.fuelMax * 0.5);
 }
+function closeCall(msg) {
+  if (F.bumpCD > 0) return;
+  F.bumpCD = 1.2; F.bumps++; audio.warn();
+  F.floats.push({ x: F.heli.x, y: F.heli.y - 40, t: 0, text: msg, bad: true });
+}
 function overlaps(ax, ay, aw, ah, s) { return ax < s.x + s.w && ax + aw > s.x && ay < s.y + s.h && ay + ah > s.y; }
 function updFly(dt) {
   F.t += dt;
   const h = F.heli, b = F.basket;
-  const base = Math.sin(F.t * 0.23) * 55 + Math.sin(F.t * 0.71 + 1) * 22;
+  // storm clock: water rises and the wind builds toward the surge peak
+  const prog = clamp(F.t / STORM_TIME, 0, 1), storm = 0.35 + 0.65 * prog;
+  if (!F.over) WATER_Y = WATER0 - 38 * Math.pow(prog, 1.5);
+  const left = STORM_TIME - F.t;
+  for (const [sec, msg] of [[180, 'Three minutes to surge peak. Water is still rising.'], [120, 'Two minutes. Winds are picking up. Prioritize the low roofs.'], [60, 'One minute to surge peak! Get everyone you can.'], [30, '30 seconds! Wrap it up, Helo 1.']])
+    if (left <= sec && !F.warned[sec] && !F.endT) { F.warned[sec] = true; radio('OLIVIA', msg); audio.warn(); }
+  if (left <= 0 && !F.over && !F.endT) {
+    F.over = true; F.saved = F.rescued + F.cabin.length + (b.load ? 1 : 0);
+    F.banner = { title: 'SURGE PEAK', sub: 'Winds are over limits. The helo is grounded.', t: 0, bad: true };
+    F.msgs = [{ who: 'OLIVIA', text: 'Helo 1, the surge is peaking. Winds are over limits. Bring it home now.' }]; F.msg = null;
+    F.endT = 0.01;
+  }
+  const base = (Math.sin(F.t * 0.23) * 40 + Math.sin(F.t * 0.71 + 1) * 15) * storm;
   F.gustT -= dt;
   if (F.gustT <= 1.8 && !F.gustWarned) { F.gustWarned = true; F.gustDir = Math.random() < 0.5 ? -1 : 1; audio.warn(); }
-  if (F.gustT <= 0) { F.gust = 2.4; F.gustT = 7 + Math.random() * 5; F.gustWarned = false; F.gusts++; }
-  let g = 0; if (F.gust > 0) { F.gust -= dt; g = F.gustDir * 175 * Math.sin(Math.PI * Math.max(0, F.gust) / 2.4); }
+  if (F.gustT <= 0) { F.gust = 2.4; F.gustT = (9 + Math.random() * 4) * (1.2 - prog * 0.5); F.gustWarned = false; F.gusts++; }
+  let g = 0; if (F.gust > 0) { F.gust -= dt; g = F.gustDir * 120 * storm * Math.sin(Math.PI * Math.max(0, F.gust) / 2.4); }
+  F.bumpCD = Math.max(0, F.bumpCD - dt);
   F.wind = base + g; windNow = F.wind;
 
   if (!F.msg && F.msgs.length) { F.msg = F.msgs.shift(); F.msgT = 0; audio.beep(); }
@@ -941,7 +975,7 @@ function updFly(dt) {
         audio.tone(880, 0.15, 'triangle', 0.1);
         if (!F.cabin.length) {
           F.fullWarned = false;
-          if (F.rescued >= survivors.length) { radio('OLIVIA', "That's everyone. Every family accounted for. Outstanding work, team."); F.endT = 0.01; }
+          if (F.rescued >= survivors.length) { radio('OLIVIA', "That's everyone. All 15 lives saved. Outstanding work, team."); F.saved = F.rescued; F.endT = 0.01; }
           else radio('OLIVIA', `Medics have them. ${F.rescued} of ${survivors.length} safe. ${survivors.length - F.rescued} still out there.`);
           F.banner = { title: `${F.offloadN} RESCUED`, sub: `${F.rescued} of ${survivors.length} people safe at the forward base`, t: 0 };
         }
@@ -949,13 +983,14 @@ function updFly(dt) {
     } else F.unloadT = 0;
     if (iy < 0 && F.endT === 0) { h.landed = false; h.vy = -80; }
   } else {
-    const ax = ix * 380 - h.vx * 1.3 + F.wind * 1.1;
-    const ay = iy * (iy < 0 ? 340 : 260) - h.vy * 2.2;
+    // arcade handling: the helo holds its position when you let go; wind only nudges it
+    const ax = (ix * 270 - h.vx) * 3 + F.wind * 0.45;
+    const ay = (iy * 210 - h.vy) * 4;
     h.vx += ax * dt; h.vy += ay * dt;
     h.x += h.vx * dt; h.y += h.vy * dt;
-    if (ix) h.face = ix;
+    if (ix) h.face = Math.sign(ix);
     F.fuel -= dt * (1.25 + 0.25 * Math.abs(ix));
-    if (h.y < 46) { h.y = 46; h.vy = Math.max(0, h.vy); }
+    if (h.y < 150) { h.y = 150; h.vy = Math.max(0, h.vy); }
     if (h.x < 60) { h.x = 60; h.vx = Math.max(0, h.vx); }
     if (h.x > WORLD_W - 60) { h.x = WORLD_W - 60; h.vx = Math.min(0, h.vx); }
     const bottom = h.y + 17;
@@ -969,8 +1004,12 @@ function updFly(dt) {
         F.banner = { title: 'SUCCESSFUL LANDING', sub: `Offloading ${F.offloadN} passenger${F.offloadN > 1 ? 's' : ''} to the medics`, t: 0 };
       }
     }
-    for (const s of SOLIDS) if (overlaps(h.x - 40, h.y - 14, 80, 31, s)) { abort('Too close! Keep rotor clearance from buildings and trees.'); break; }
-    if (bottom > WATER_Y - 4) abort('Too low over the floodwater!');
+    for (const s of SOLIDS) if (overlaps(h.x - 34, h.y - 12, 68, 29, s)) { // soft bump, nobody hurt
+      if (h.y + 17 - s.y < 16) { h.y = s.y - 18; h.vy = Math.min(h.vy, -90); }
+      else { h.x = h.x < s.x + s.w / 2 ? s.x - 35 : s.x + s.w + 35; h.vx = -h.vx * 0.4; }
+      closeCall('Close call! Watch your rotor clearance.'); break;
+    }
+    if (h.y + 17 > WATER_Y - 4) { h.y = WATER_Y - 22; h.vy = Math.min(h.vy, -110); closeCall('Too low over the floodwater!'); }
     if (F.fuel <= 0) { F.fuel = 0; abort('Out of fuel! Watch the gauge and refuel at base.'); }
     if (F.fuel < F.fuelMax * 0.25 && !F.lowFuel) { F.lowFuel = true; radio('BRYAN', 'Bingo fuel. Head back to base and top off.'); }
     const gap = surfaceAt(h.x) - bottom;
@@ -1005,8 +1044,8 @@ function updFly(dt) {
     }
   } else {
     const pby = b.y;
-    b.vy += 620 * dt; b.vx += F.wind * 0.7 * dt;
-    b.vx *= Math.pow(0.55, dt); b.vy *= Math.pow(0.8, dt);
+    b.vy += 620 * dt; b.vx += F.wind * 0.2 * dt;
+    b.vx *= Math.pow(0.12, dt); b.vy *= Math.pow(0.6, dt);
     b.x += b.vx * dt; b.y += b.vy * dt;
     const dx = b.x - hookX, dy = b.y - hookY, d = Math.hypot(dx, dy) || 1;
     if (d > F.rope) {
@@ -1026,12 +1065,13 @@ function updFly(dt) {
     if (b.grounded) F.rope = Math.min(F.rope, Math.hypot(b.x - hookX, b.y - hookY) + 6);
   }
   F.boardTarget = null;
-  if (b.grounded && !b.load && hoist) {
-    const sv = survivors.find(s => s.state === 'roof' && Math.abs(s.x - b.x) < 36 && Math.abs(s.roofY - (b.y + 8)) < 6);
+  if (!b.load && hoist && F.rope > 10) {
+    const sv = survivors.filter(s => s.state === 'roof' && Math.abs(s.x - b.x) < 55 && b.y + 8 > s.roofY - 34 && b.y - 8 < s.roofY)
+      .sort((a, c) => Math.abs(a.x - b.x) - Math.abs(c.x - b.x))[0];
     if (sv) {
       if (F.cabin.length >= CAP) { F.board = 0; F.cabinFullHint = true; }
       else {
-        F.boardTarget = sv; F.board += dt * (has('medic') ? 1.7 : 1.0);
+        F.boardTarget = sv; F.board += dt * (has('medic') ? 3.2 : 2.0);
         if (F.board >= 1) {
           F.board = 0; b.load = sv; sv.state = 'basket'; audio.beep();
           if (sv.jackpot && !F.jackpotDone) {
@@ -1101,7 +1141,7 @@ function drawFly() {
   }
   heliLights(h, tilt, t, F.beam);
   ctx.globalCompositeOperation = 'source-over';
-  for (const f of F.floats) { ctx.globalAlpha = 1 - f.t / 1.6; ctx.save(); ctx.shadowColor = '#000'; ctx.shadowBlur = 6; txt(f.text, f.x, f.y, 14, '#7ef0a8', 'center', 800); ctx.restore(); ctx.globalAlpha = 1; }
+  for (const f of F.floats) { ctx.globalAlpha = 1 - f.t / 1.6; ctx.save(); ctx.shadowColor = '#000'; ctx.shadowBlur = 6; txt(f.text, f.x, f.y, 14, f.bad ? '#ff9a90' : '#7ef0a8', 'center', 800); ctx.restore(); ctx.globalAlpha = 1; }
   ctx.restore();
   drawPoles(F.cam);
   drawRain(1);
@@ -1111,10 +1151,10 @@ function drawFly() {
   if (isTouch) drawTouch();
   if (F.banner && F.jackpotT <= 0) {
     const bt = F.banner.t, a = Math.min(1, bt * 5, (3 - bt) * 3), y = 200 + (1 - Math.min(1, bt * 5)) * 12;
-    ctx.save(); ctx.globalAlpha = clamp(a, 0, 1); ctx.shadowColor = 'rgba(92,214,138,0.7)'; ctx.shadowBlur = 28;
-    rr(VW / 2 - 270, y - 44, 540, 84, 12); ctx.fillStyle = 'rgba(8,20,14,0.9)'; ctx.fill(); ctx.strokeStyle = '#5cd68a'; ctx.lineWidth = 3; ctx.stroke();
-    ctx.shadowBlur = 0; txt('✓  ' + F.banner.title, VW / 2, y, 30, '#7ef0a8', 'center', 900);
-    txt(F.banner.sub, VW / 2, y + 26, 15, '#d5f5e1', 'center', 600); ctx.restore();
+    ctx.save(); ctx.globalAlpha = clamp(a, 0, 1); const bad = F.banner.bad; ctx.shadowColor = bad ? 'rgba(229,83,75,0.7)' : 'rgba(92,214,138,0.7)'; ctx.shadowBlur = 28;
+    rr(VW / 2 - 270, y - 44, 540, 84, 12); ctx.fillStyle = bad ? 'rgba(24,8,8,0.9)' : 'rgba(8,20,14,0.9)'; ctx.fill(); ctx.strokeStyle = bad ? RED : '#5cd68a'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.shadowBlur = 0; txt((bad ? '⚠  ' : '✓  ') + F.banner.title, VW / 2, y, 30, bad ? '#ff9a90' : '#7ef0a8', 'center', 900);
+    txt(F.banner.sub, VW / 2, y + 26, 15, bad ? '#f5d5d5' : '#d5f5e1', 'center', 600); ctx.restore();
   }
   if (F.jackpotT > 0) {
     const a = Math.min(1, F.jackpotT), s = 1 + Math.sin(F.t * 12) * 0.03;
@@ -1138,7 +1178,7 @@ function drawHUD() {
   panel(10, 10, 214, 96, 10);
   ctx.fillStyle = ORANGE; ctx.fillRect(10, 18, 3, 18);
   txt('OP HURRICANE', 22, 31, 11, ORANGE, 'left', 900);
-  txt(fmtTime(F.t), 212, 31, 11, '#9fb3c6', 'right', 700);
+
   const fr = F.fuel / F.fuelMax;
   txt('FUEL', 22, 54, 11, '#9fb3c6', 'left', 700);
   rr(62, 45, 150, 10, 5); ctx.fillStyle = '#1e2a35'; ctx.fill();
@@ -1146,7 +1186,7 @@ function drawHUD() {
   ctx.fillStyle = fr > 0.5 ? '#5cd68a' : fr > 0.25 ? '#e6c14e' : (Math.sin(F.t * 10) > 0 ? RED : '#7a2a26'); ctx.fill();
   txt('SAFE', 22, 77, 11, '#9fb3c6', 'left', 700); txt(`${F.rescued} / ${survivors.length}`, 62, 77, 13, '#f3f6f9', 'left', 800);
   txt('CABIN', 122, 77, 11, '#9fb3c6', 'left', 700);
-  for (let i = 0; i < CAP; i++) { ctx.fillStyle = i < F.cabin.length ? ORANGE : '#2a3a48'; ctx.beginPath(); ctx.arc(172 + i * 16, 73, 6, 0, Math.PI * 2); ctx.fill(); }
+  for (let i = 0; i < CAP; i++) { ctx.fillStyle = i < F.cabin.length ? ORANGE : '#2a3a48'; ctx.beginPath(); ctx.arc(172 + i * 11, 73, 4.5, 0, Math.PI * 2); ctx.fill(); }
   txt(`ROPE ${Math.round(F.rope / 3)} ft`, 22, 97, 11, '#9fb3c6', 'left', 700);
   const mx = 300, mw = 360, my = 12;
   panel(mx - 10, my - 4, mw + 20, 30, 8);
@@ -1155,6 +1195,12 @@ function drawHUD() {
   if (has('starlink')) for (const s of survivors) if (s.state === 'roof') { ctx.fillStyle = ORANGE; ctx.beginPath(); ctx.arc(mx + s.x / WORLD_W * mw, my + 13, 3.5, 0, Math.PI * 2); ctx.fill(); }
   ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(mx + h.x / WORLD_W * mw, my + 13, 4.5, 0, Math.PI * 2); ctx.fill();
   if (!has('starlink')) txt('STARLINK OFFLINE · SEARCH EAST', mx + mw / 2, my + 9, 9, '#7d8b98', 'center', 700);
+  // storm clock
+  const left = Math.max(0, STORM_TIME - F.t), prog = clamp(F.t / STORM_TIME, 0, 1), urgent = left < 60;
+  panel(mx - 10, 40, mw + 20, 26, 8, urgent && Math.sin(F.t * 8) > 0 ? RED : 'rgba(255,255,255,0.08)');
+  rr(mx, 46, mw, 14, 7); ctx.fillStyle = '#1e2a35'; ctx.fill();
+  rr(mx, 46, Math.max(14, mw * prog), 14, 7); const sg = ctx.createLinearGradient(mx, 0, mx + mw, 0); sg.addColorStop(0, '#e6c14e'); sg.addColorStop(1, RED); ctx.fillStyle = sg; ctx.fill();
+  txt(F.over ? 'SURGE PEAK' : `SURGE PEAK IN ${fmtTime(left)}  ·  ${F.rescued + F.cabin.length} / ${survivors.length} LIVES`, mx + mw / 2, 57, 11, '#fff', 'center', 900);
   panel(752, 10, 164, 52, 10);
   txt('WIND', 764, 30, 11, '#9fb3c6', 'left', 700);
   txt(`${Math.round(Math.abs(F.wind) * 0.6)} kt`, 904, 30, 13, Math.abs(F.wind) > 120 ? RED : '#f3f6f9', 'right', 800);
@@ -1169,22 +1215,22 @@ function drawHUD() {
   if (F.msg) {
     const sp = SPEAKERS[F.msg.who], a = Math.min(1, F.msgT * 4, (4.2 - F.msgT) * 3);
     ctx.globalAlpha = clamp(a, 0, 1);
-    panel(250, 48, 460, 64, 10, sp.col);
-    txt('◉ ' + sp.label, 264, 66, 11, sp.col, 'left', 800);
-    drawWrapped(F.msg.text, 264, 86, 432, 14, '#eef2f6', 18, Math.floor(F.msgT * 70));
+    panel(250, 72, 460, 64, 10, sp.col);
+    txt('◉ ' + sp.label, 264, 90, 11, sp.col, 'left', 800);
+    drawWrapped(F.msg.text, 264, 110, 432, 14, '#eef2f6', 18, Math.floor(F.msgT * 70));
     ctx.globalAlpha = 1;
   }
   let hint = '';
   const near = survivors.find(s => s.state === 'roof' && Math.abs(s.x - h.x) < 110);
   if (F.endT > 0) hint = '';
   else if (h.landed && F.cabin.length) hint = 'Unloading. Medics are taking over.';
-  else if (h.landed) hint = F.rescued ? 'Refueling. Press ↑ to lift off.' : 'Press ↑ to lift off. Fly right toward the rooftops.';
-  else if (F.basket.load) hint = 'Got them! Release SPACE to winch up.';
+  else if (h.landed) hint = isTouch ? (F.rescued ? 'Refueling. Drag up to lift off.' : 'Drag up on the left side to lift off.') : (F.rescued ? 'Refueling. Press ↑ to lift off.' : 'Press ↑ to lift off. Fly right toward the rooftops.');
+  else if (F.basket.load) hint = isTouch ? 'Got them! Let go to winch up.' : 'Got them! Release SPACE to winch up.';
   else if (F.cabinFullHint && F.cabin.length >= CAP) hint = 'Cabin full. Fly back to the forward base and land.';
   else if (F.boardTarget) hint = 'Hold steady... loading the basket.';
   else if (F.cabin.length >= CAP) hint = 'Cabin full. Fly back to the forward base and land.';
-  else if (near && F.rope < 10) hint = `Hover over ${near.name} and hold SPACE to lower the basket.`;
-  else if (near) hint = 'Set the basket down right next to them. Keep holding SPACE.';
+  else if (near && F.rope < 10) hint = isTouch ? `Hover near ${near.name} and hold the right side to lower the basket.` : `Hover near ${near.name} and hold SPACE to lower the basket.`;
+  else if (near) hint = isTouch ? 'Lower the basket down next to them. Keep holding.' : 'Lower the basket down next to them. Keep holding SPACE.';
   else if (F.lowFuel) hint = 'Low fuel. Return to base.';
   F.cabinFullHint = false;
   if (hint) {
@@ -1194,16 +1240,20 @@ function drawHUD() {
   }
 }
 function drawTouch() {
-  const arrows = { up: '▲', left: '◀', down: '▼', right: '▶' };
-  for (const k of ['up', 'left', 'down', 'right']) {
-    const r = TB[k]; rr(r.x, r.y, r.w, r.h, 14); ctx.fillStyle = held(k) ? 'rgba(246,162,60,0.5)' : 'rgba(255,255,255,0.12)'; ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1; ctx.stroke();
-    txt(arrows[k], r.x + r.w / 2, r.y + r.h / 2 + 9, 26, '#fff', 'center', 700);
-  }
-  const r = TB.hoist; ctx.beginPath(); ctx.arc(r.x + r.w / 2, r.y + r.h / 2, r.w / 2, 0, Math.PI * 2);
-  ctx.fillStyle = held('hoist') ? 'rgba(246,162,60,0.75)' : 'rgba(246,162,60,0.3)'; ctx.fill();
+  const on = stick.id !== null, [vx, vy] = stickVec();
+  const bx = on ? stick.ox : 130, by = on ? stick.oy : 420;
+  ctx.globalAlpha = on ? 0.95 : 0.6;
+  ctx.beginPath(); ctx.arc(bx, by, STICK_R, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 2; ctx.stroke();
-  txt('HOIST', r.x + r.w / 2, r.y + r.h / 2 + 7, 18, '#fff', 'center', 900);
+  const kx = bx + clamp((on ? stick.x - stick.ox : 0), -STICK_R, STICK_R), ky = by + clamp((on ? stick.y - stick.oy : 0), -STICK_R, STICK_R);
+  ctx.beginPath(); ctx.arc(kx, ky, 26, 0, Math.PI * 2); ctx.fillStyle = on ? 'rgba(246,162,60,0.85)' : 'rgba(255,255,255,0.3)'; ctx.fill();
+  if (!on) txt('DRAG TO FLY', bx, by + STICK_R + 22, 12, '#dfe6ee', 'center', 800);
+  const hx = 850, hy = 420, hr = 62, hd = hoistTouches.size > 0;
+  ctx.globalAlpha = hd ? 0.95 : 0.6;
+  ctx.beginPath(); ctx.arc(hx, hy, hr, 0, Math.PI * 2); ctx.fillStyle = hd ? 'rgba(246,162,60,0.75)' : 'rgba(246,162,60,0.28)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2; ctx.stroke();
+  txt('HOIST', hx, hy + 2, 20, '#fff', 'center', 900); txt('hold', hx, hy + 22, 12, '#fff', 'center', 700);
+  ctx.globalAlpha = 1;
 }
 function drawMute() {
   const x = 924, y = 8;
@@ -1219,8 +1269,8 @@ function drawMute() {
 // ------------------------------------------------------------- debrief ----
 function stars() {
   if (!F) return 1;
-  if (F.t <= 210 && F.aborts === 0) return 3;
-  if (F.t <= 330 && F.aborts <= 1) return 2;
+  if (F.saved >= survivors.length) return 3;
+  if (F.saved >= 10) return 2;
   return 1;
 }
 function drawStar(x, y, r, on) {
@@ -1238,15 +1288,16 @@ function drawDebrief(t) {
   for (const b of SKYLINE) if (b.x < VW) ctx.fillRect(b.x, 470 - b.h * 0.8, b.w, b.h * 0.8 + 80);
   ctx.fillRect(0, 468, VW, 80);
   ctx.fillStyle = 'rgba(4,7,11,0.55)'; ctx.fillRect(0, 0, VW, VH);
-  txt('MISSION COMPLETE', 60, 76, 40, '#f3f6f9', 'left', 900);
+  const all = F && F.saved >= survivors.length;
+  txt(all ? 'MISSION COMPLETE' : 'SURGE PEAK REACHED', 60, 76, all ? 40 : 34, '#f3f6f9', 'left', 900);
   txt('OPERATION HURRICANE', 62, 102, 13, ORANGE, 'left', 800);
   const n = stars();
   for (let i = 0; i < 3; i++) drawStar(84 + i * 52, 150, 22, i < n && t > 0.3 + i * 0.3);
-  const rows = [['People rescued', `${F ? F.rescued : 0} / ${survivors.length}`], ['Mission time', fmtTime(F ? F.t : 0)], ['Aborts', String(F ? F.aborts : 0)], ['Gusts weathered', String(F ? F.gusts : 0)], ['Loadout', picked.map(k => KIT.find(x => x.k === k).name).join(' + ')]];
+  const rows = [['Lives saved', `${F ? F.saved : 0} / ${survivors.length}`], ['Storm clock left', fmtTime(F ? Math.max(0, STORM_TIME - F.t) : 0)], ['Close calls', String(F ? F.bumps : 0)], ['Gusts weathered', String(F ? F.gusts : 0)], ['Loadout', picked.map(k => KIT.find(x => x.k === k).name).join(' + ')]];
   rows.forEach(([a, b], i) => { txt(a, 62, 210 + i * 30, 15, '#9fb3c6', 'left', 600); txt(b, 430, 210 + i * 30, 15, '#f3f6f9', 'right', 800); });
   panel(62, 362, 368, 72, 10, TEAL);
   txt('OLIVIA', 76, 382, 11, TEAL, 'left', 800);
-  drawWrapped('"Sarah just heard her parents\' voices. That\'s why we do this."', 76, 403, 340, 14, '#eef2f6', 19);
+  drawWrapped(all ? '"All 15 home. Sarah just heard her parents\' voices. That\'s why we do this."' : `"High-water teams reached the other ${survivors.length - (F ? F.saved : 0)} at first light. You gave them a fighting chance."`, 76, 403, 340, 14, '#eef2f6', 19);
   panel(480, 40, 430, 380, 14);
   txt('THE REAL MISSION', 504, 72, 13, ORANGE, 'left', 900);
   txt('Hurricane Helene · Florida, 2024', 504, 98, 18, '#f3f6f9', 'left', 800);
