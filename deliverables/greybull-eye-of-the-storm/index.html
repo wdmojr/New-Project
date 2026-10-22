@@ -311,9 +311,8 @@ const SOLIDS = [
   ...HOUSES.map(h => ({ x: h.x, y: h.y, w: h.w, h: 600 - h.y })),
   ...PALMS.map(p => ({ x: p.x - 5, y: WATER_Y - p.h, w: 10, h: p.h })),
   ...PALMS.map(p => ({ x: p.x - 36, y: WATER_Y - p.h - 14, w: 72, h: 22 })),
-  TENT, TRUCK
 ];
-const BASKET_SOLIDS = [...SOLIDS, { x: -50, y: GROUND_Y, w: BASE_W + 50, h: 200 }];
+const BASKET_SOLIDS = [...SOLIDS, TENT, TRUCK, { x: -50, y: GROUND_Y, w: BASE_W + 50, h: 200 }];
 const DEBRIS = [
   { x: 640, k: 'sign', t: 'OCEAN BLVD' }, { x: 1020, k: 'barrel' }, { x: 1235, k: 'car', c: '#7a2a2a' }, { x: 1420, k: 'plank' },
   { x: 1790, k: 'sign', t: 'BEACH RD' }, { x: 1950, k: 'car', c: '#2b466b' }, { x: 2620, k: 'barrel' }, { x: 2770, k: 'cooler' },
@@ -882,7 +881,7 @@ function initFly() {
     wind: 0, gust: 0, gustT: 9, gustDir: 1, gustWarned: false,
     cam: 0, msgs: [], msg: null, msgT: 0, board: 0, beam: 0.3,
     abortT: 0, abortMsg: '', jackpotT: 0, jackpotDone: false, unloadT: 0, walkers: [], floats: [],
-    lowFuel: false, fullWarned: false, endT: 0
+    lowFuel: false, fullWarned: false, endT: 0, banner: null
   };
   radio('OLIVIA', `Helo 1, Ops. ${survivors.length} people stranded on rooftops east of the base. Tom and Linda are on the first roof. Bring them home.`);
   radio('BRYAN', 'Copy. Lifting off. Watch the gusts out there.');
@@ -913,6 +912,7 @@ function updFly(dt) {
   if (!F.msg && F.msgs.length) { F.msg = F.msgs.shift(); F.msgT = 0; audio.beep(); }
   if (F.msg) { F.msgT += dt; if (F.msgT > 4.2) F.msg = null; }
   F.jackpotT = Math.max(0, F.jackpotT - dt);
+  if (F.banner) { F.banner.t += dt; if (F.banner.t > 3) F.banner = null; }
   for (const f of F.floats) { f.t += dt; f.y -= 24 * dt; }
   F.floats = F.floats.filter(f => f.t < 1.6);
   for (const w of F.walkers) w.x = Math.max(150, w.x - 46 * dt);
@@ -930,6 +930,7 @@ function updFly(dt) {
   const ix = F.endT > 0 ? 0 : inX(), iy = F.endT > 0 ? 0 : inY(), hoist = F.endT > 0 ? false : inHoist();
   if (h.landed) {
     h.vx = 0; h.vy = 0;
+    const toPad = 260 - h.x; if (Math.abs(toPad) > 1) { h.x += Math.sign(toPad) * Math.min(Math.abs(toPad), 140 * dt); h.face = Math.sign(toPad); }
     F.fuel = Math.min(F.fuelMax, F.fuel + 40 * dt);
     if (F.fuel > F.fuelMax * 0.5) F.lowFuel = false;
     if (F.cabin.length) {
@@ -942,6 +943,7 @@ function updFly(dt) {
           F.fullWarned = false;
           if (F.rescued >= survivors.length) { radio('OLIVIA', "That's everyone. Every family accounted for. Outstanding work, team."); F.endT = 0.01; }
           else radio('OLIVIA', `Medics have them. ${F.rescued} of ${survivors.length} safe. ${survivors.length - F.rescued} still out there.`);
+          F.banner = { title: `${F.offloadN} RESCUED`, sub: `${F.rescued} of ${survivors.length} people safe at the forward base`, t: 0 };
         }
       }
     } else F.unloadT = 0;
@@ -957,11 +959,17 @@ function updFly(dt) {
     if (h.x < 60) { h.x = 60; h.vx = Math.max(0, h.vx); }
     if (h.x > WORLD_W - 60) { h.x = WORLD_W - 60; h.vx = Math.min(0, h.vx); }
     const bottom = h.y + 17;
-    if (h.x < BASE_W && bottom >= GROUND_Y) {
-      if (h.vy < 190 && Math.abs(h.vx) < 170) { h.y = GROUND_Y - 17; h.landed = true; h.vx = h.vy = 0; audio.tone(220, 0.12, 'sine', 0.1); }
-      else abort('Hard landing! Ease it down onto the base.');
+    if (h.x < BASE_W + 40 && bottom > GROUND_Y - 70) { // landing assist over the base
+      h.vy = Math.min(h.vy, 120); if (ix === 0) h.vx *= Math.pow(0.15, dt);
     }
-    for (const s of SOLIDS) if (overlaps(h.x - 40, h.y - 14, 80, 31, s)) { abort('Too close! Keep rotor clearance from buildings, trees and vehicles.'); break; }
+    if (h.x < BASE_W && bottom >= GROUND_Y) {
+      h.y = GROUND_Y - 17; h.landed = true; h.vx = h.vy = 0; audio.tone(220, 0.12, 'sine', 0.1);
+      if (F.cabin.length) {
+        F.offloadN = F.cabin.length;
+        F.banner = { title: 'SUCCESSFUL LANDING', sub: `Offloading ${F.offloadN} passenger${F.offloadN > 1 ? 's' : ''} to the medics`, t: 0 };
+      }
+    }
+    for (const s of SOLIDS) if (overlaps(h.x - 40, h.y - 14, 80, 31, s)) { abort('Too close! Keep rotor clearance from buildings and trees.'); break; }
     if (bottom > WATER_Y - 4) abort('Too low over the floodwater!');
     if (F.fuel <= 0) { F.fuel = 0; abort('Out of fuel! Watch the gauge and refuel at base.'); }
     if (F.fuel < F.fuelMax * 0.25 && !F.lowFuel) { F.lowFuel = true; radio('BRYAN', 'Bingo fuel. Head back to base and top off.'); }
@@ -1101,6 +1109,13 @@ function drawFly() {
   post();
   drawHUD();
   if (isTouch) drawTouch();
+  if (F.banner && F.jackpotT <= 0) {
+    const bt = F.banner.t, a = Math.min(1, bt * 5, (3 - bt) * 3), y = 200 + (1 - Math.min(1, bt * 5)) * 12;
+    ctx.save(); ctx.globalAlpha = clamp(a, 0, 1); ctx.shadowColor = 'rgba(92,214,138,0.7)'; ctx.shadowBlur = 28;
+    rr(VW / 2 - 270, y - 44, 540, 84, 12); ctx.fillStyle = 'rgba(8,20,14,0.9)'; ctx.fill(); ctx.strokeStyle = '#5cd68a'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.shadowBlur = 0; txt('✓  ' + F.banner.title, VW / 2, y, 30, '#7ef0a8', 'center', 900);
+    txt(F.banner.sub, VW / 2, y + 26, 15, '#d5f5e1', 'center', 600); ctx.restore();
+  }
   if (F.jackpotT > 0) {
     const a = Math.min(1, F.jackpotT), s = 1 + Math.sin(F.t * 12) * 0.03;
     ctx.save(); ctx.globalAlpha = a; ctx.translate(VW / 2, 230); ctx.scale(s, s);
