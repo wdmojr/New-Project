@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Operation Hurricane</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&family=Big+Shoulders+Stencil+Display:wght@800&display=swap" rel="stylesheet">
 <style>
   html,body{margin:0;height:100%;background:#05080c;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
   canvas{display:block;width:100vw;height:100vh;touch-action:none;-webkit-touch-callout:none}
@@ -23,7 +23,7 @@ const VW = 960, VH = 540;
 const FONT = 'Barlow, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 const DISPLAY = '"Barlow Condensed", "Arial Narrow", system-ui, sans-serif';
 const MONO = '"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace';
-const ORANGE = '#d6a640', TEAL = '#5fd09a', RED = '#d23a35', GB_RED = '#b3262b', GB_NAVY = '#1f3a5c';
+const ORANGE = '#e5484d', TEAL = '#5fd09a', RED = '#ff5a52', GB_RED = '#b3262b', GB_NAVY = '#1f3a5c', BLUE = '#8fb6e8';
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 let dpr = 1, scale = 1, ox = 0, oy = 0;
 function resize() {
@@ -212,15 +212,24 @@ function rr(x, y, w, h, r) {
   ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
   ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
 }
-function txt(s, x, y, size, col, align = 'left', weight = 600) {
+// one place decides the face for a string, so measuring and drawing always agree:
+// small all-caps labels use spaced mono (the ops-map look), bold big lines the condensed display face
+function setFont(s, size, weight) {
+  size = Math.max(size, 8);
   const caps = /[A-Z]/.test(s) && s === s.toUpperCase();
-  if (caps && size <= 13) { ctx.font = `600 ${size}px ${MONO}`; ctx.letterSpacing = '0.12em'; }
-  else if (weight >= 800 && size >= 16) { ctx.font = `${Math.min(weight, 800)} ${Math.round(size * 1.14)}px ${DISPLAY}`; ctx.letterSpacing = caps ? '0.02em' : '0px'; }
+  if (caps && size <= 13) { ctx.font = `600 ${size}px ${MONO}`; ctx.letterSpacing = `${(size * 0.06).toFixed(2)}px`; }
+  else if (weight >= 800 && size >= 16) { ctx.font = `${Math.min(weight, 800)} ${Math.round(size * 1.14)}px ${DISPLAY}`; ctx.letterSpacing = caps ? `${(size * 0.02).toFixed(2)}px` : '0px'; }
   else { ctx.font = `${Math.min(weight, 700)} ${size}px ${FONT}`; ctx.letterSpacing = '0px'; }
+}
+function tw(s, size, weight = 600) { setFont(s, size, weight); const w = ctx.measureText(s).width; ctx.letterSpacing = '0px'; return w; }
+// maxW: shrink the text to fit its container instead of spilling out of it
+function txt(s, x, y, size, col, align = 'left', weight = 600, maxW = 0) {
+  if (maxW) while (size > 6 && tw(s, size, weight) > maxW) size -= 0.5;
+  setFont(s, size, weight);
   ctx.fillStyle = col; ctx.textAlign = align; ctx.textBaseline = 'alphabetic'; ctx.fillText(s, x, y); ctx.letterSpacing = '0px';
 }
 function wrap(s, maxW, size, weight = 500) {
-  ctx.font = `${weight} ${size}px ${FONT}`;
+  setFont(s, size, weight);
   const out = []; let cur = '';
   for (const w of s.split(' ')) { const t = cur ? cur + ' ' + w : w; if (ctx.measureText(t).width > maxW && cur) { out.push(cur); cur = w; } else cur = t; }
   if (cur) out.push(cur); return out;
@@ -560,7 +569,7 @@ function drawDebris(t) {
     if (d.k === 'sign') {
       if (sy < WATER0 - 60) { ctx.restore(); return; }
       ctx.fillStyle = '#5c6268'; ctx.fillRect(x - 2, WATER0 - 64, 4, sy - (WATER0 - 64));
-      ctx.translate(x, WATER0 - 64); ctx.rotate(-0.08); ctx.font = `800 10px ${FONT}`; const w = ctx.measureText(d.t).width + 14;
+      ctx.translate(x, WATER0 - 64); ctx.rotate(-0.08); const w = tw(d.t, 10, 800) + 14;
       rr(-w / 2, -14, w, 16, 2); ctx.fillStyle = '#1f5a3a'; ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 1; ctx.stroke();
       txt(d.t, 0, -2, 10, 'rgba(240,245,240,0.9)', 'center', 800);
     } else if (d.k === 'car') {
@@ -607,9 +616,9 @@ function drawBase(t) {
   for (let x = -10; x < BASE_W + 20; x += 6) { const b = Math.sin(t * 4 + x) * 1.5 + windNow * 0.02; ctx.moveTo(x, GROUND_Y + 1); ctx.lineTo(x + b + 2, GROUND_Y - 4 - hash(x) * 4); }
   ctx.stroke();
   ctx.fillStyle = '#4b5055'; ctx.fillRect(192, GROUND_Y - 3, 136, 7);
-  ctx.fillStyle = '#e6c14e'; ctx.fillRect(200, GROUND_Y - 3, 120, 2);
+  ctx.fillStyle = '#cfd8e3'; ctx.fillRect(200, GROUND_Y - 3, 120, 2);
   ctx.fillStyle = '#e8e8e8'; ctx.fillRect(250, GROUND_Y - 2, 20, 3);
-  for (let k = 0; k < 5; k++) { const lx = 196 + k * 32; ctx.fillStyle = '#d6a640'; ctx.fillRect(lx, GROUND_Y - 5, 3, 3); if (Math.sin(t * 4 - k * 0.8) > 0) GLOWS.push({ x: lx + 1, y: GROUND_Y - 4, r: 14, col: 'rgba(214,166,64,A)', a: 0.8, refl: false }); }
+  for (let k = 0; k < 5; k++) { const lx = 196 + k * 32; ctx.fillStyle = '#e5484d'; ctx.fillRect(lx, GROUND_Y - 5, 3, 3); if (Math.sin(t * 4 - k * 0.8) > 0) GLOWS.push({ x: lx + 1, y: GROUND_Y - 4, r: 14, col: 'rgba(229,72,77,A)', a: 0.8, refl: false }); }
   ctx.strokeStyle = '#3a4046'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(185, GROUND_Y); ctx.lineTo(185, GROUND_Y - 82); ctx.stroke();
   ctx.fillStyle = '#d9dde0'; ctx.fillRect(176, GROUND_Y - 90, 18, 7);
   const tg = ctx.createLinearGradient(0, TENT.y, 0, GROUND_Y); tg.addColorStop(0, '#5f6748'); tg.addColorStop(1, '#3c4230');
@@ -773,8 +782,9 @@ function drawTitle(t) {
   if (LIT.flash > 0) { ctx.fillStyle = `rgba(210,225,255,${LIT.flash * 0.25})`; ctx.fillRect(0, 0, VW, VH); }
   const sh = ctx.createLinearGradient(0, 0, 0, VH); sh.addColorStop(0, 'rgba(4,7,11,0.25)'); sh.addColorStop(0.5, 'rgba(4,7,11,0.62)'); sh.addColorStop(1, 'rgba(4,7,11,0.35)');
   ctx.fillStyle = sh; ctx.fillRect(0, 0, VW, VH);
-  txt('MISSION READY  ·  GREY BULL RESCUE', VW / 2, 150, 15, ORANGE, 'center', 800);
-  txt("You are Grey Bull's newest operator. Bryan is your coach.", VW / 2, 296, 14, '#f6c27a', 'center', 600);
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = 20; drawLogo(VW / 2, 92, 74, t); ctx.restore();
+  txt('MISSION READY  //  A GREY BULL RESCUE CONCEPT', VW / 2, 158, 11, TEAL, 'center', 700);
+  txt("You are Grey Bull's newest operator. Bryan is your coach.", VW / 2, 296, 14, '#cfe0f5', 'center', 600);
   ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 24;
   txt('OPERATION HURRICANE', VW / 2, 222, 60, '#f3f6f9', 'center', 900); ctx.restore();
   ctx.fillStyle = ORANGE; ctx.fillRect(VW / 2 - 60, 238, 120, 3);
@@ -783,8 +793,8 @@ function drawTitle(t) {
   txt(isTouch ? 'Drag on the left side to fly   ·   Tap the right side to lower the basket' : 'Arrows / WASD to fly   ·   Tap SPACE to lower the rescue basket   ·   M to mute', VW / 2, 398, 14, '#94a3b1', 'center', 500);
   if (isTouch) txt('🔊 Turn your volume up: the crew talks to you on the radio', VW / 2, 488, 13, '#94a3b1', 'center', 600);
   if (innerHeight > innerWidth) { panel(VW / 2 - 190, 420, 380, 40, 20, ORANGE); txt('Turn your phone sideways for the best view', VW / 2, 446, 15, '#f3f6f9', 'center', 700); }
-  txt('Concept prototype  ·  Dramatized from real Grey Bull Rescue hurricane responses  ·  Not an official Grey Bull Rescue product', VW / 2, 516, 12, '#66747f', 'center', 500);
-  txt('Voices generated with ElevenLabs', VW / 2, 535, 10, '#4f5c68', 'center', 500);
+  txt('Concept prototype  ·  Dramatized from real Grey Bull Rescue hurricane responses  ·  Not an official Grey Bull Rescue product', VW / 2, 516, 12, '#8d9aa6', 'center', 500);
+  txt('Voices generated with ElevenLabs', VW / 2, 535, 10, '#76838f', 'center', 500);
 }
 
 // ------------------------------------------------------------ cold open ----
@@ -823,7 +833,7 @@ function drawIntro(t) {
     const py = y0 + c.lines.length * 36 + 30, pa = clamp((lt - 1.2 - c.lines.length * 0.35) / 0.4, 0, 1);
     if (pa > 0) {
       ctx.globalAlpha = a * pa; ctx.save(); ctx.translate(VW / 2, py); const sc = 1 + (1 - pa) * 0.15; ctx.scale(sc, sc);
-      ctx.shadowColor = 'rgba(214,166,64,0.45)'; ctx.shadowBlur = 28; txt(c.punch, 0, 0, 38, '#ffffff', 'center', 900); ctx.restore();
+      ctx.shadowColor = 'rgba(229,72,77,0.45)'; ctx.shadowBlur = 28; txt(c.punch, 0, 0, 38, '#ffffff', 'center', 900); ctx.restore();
     }
     ctx.globalAlpha = a * clamp((lt - 2.4) / 0.6, 0, 1);
     ctx.fillStyle = ORANGE; ctx.fillRect(VW / 2 - 24, py + 26, 48, 2);
@@ -858,9 +868,9 @@ function drawMap(v, r, o = {}) {
   const polys = [...GEO.alabama, ...GEO.georgia, ...GEO.florida];
   const path = () => { ctx.beginPath(); for (const ring of polys) { ring.forEach(([lo, la], i) => { const [x, y] = P(lo, la); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.closePath(); } };
   ctx.lineJoin = 'round';
-  const lg = ctx.createLinearGradient(r.x, r.y, r.x + r.w * 0.6, r.y + r.h); lg.addColorStop(0, '#4a4630'); lg.addColorStop(1, '#3a3826');
+  const lg = ctx.createLinearGradient(r.x, r.y, r.x + r.w * 0.6, r.y + r.h); lg.addColorStop(0, '#2e3f55'); lg.addColorStop(1, '#253447');
   path(); ctx.fillStyle = lg; ctx.fill();
-  ctx.save(); ctx.shadowColor = 'rgba(214,166,64,0.55)'; ctx.shadowBlur = 6; ctx.strokeStyle = '#d6a640'; ctx.lineWidth = 1.3; ctx.stroke(); ctx.restore();
+  ctx.save(); ctx.shadowColor = 'rgba(143,182,232,0.55)'; ctx.shadowBlur = 6; ctx.strokeStyle = '#a9c4e6'; ctx.lineWidth = 1.3; ctx.stroke(); ctx.restore();
   return P;
 }
 function drawStorm(cx, cy, R, t, a = 1) {
@@ -894,6 +904,75 @@ function marker(x, y, rgbStr, label, t, side = 'left') {
   ctx.fillStyle = `rgb(${rgbStr})`; ctx.beginPath(); ctx.arc(x, y, 4.5, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
   if (label) { ctx.save(); ctx.shadowColor = '#000'; ctx.shadowBlur = 6; txt(label, side === 'left' ? x + 10 : x - 10, y + 4, 12, `rgb(${rgbStr})`, side, 800); ctx.restore(); }
+}
+
+
+// ---------------------------------------------------------- Grey Bull logo ----
+// The Grey Bull Rescue lockup rebuilt as vectors from the supplied logo, reversed for dark backgrounds
+// (white mark and wordmark, brand-red stripes). Units: the mark is 270 x 260; the full lockup is ~990 wide.
+const LOGO_W = 990, LOGO_H = 260;
+let logoCv = null;
+const eOutBack = k => { const c = 1.7; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); };
+const eOut = k => 1 - Math.pow(1 - k, 3);
+function logoArt(g, t) {
+  const W = '#f3f6f9', R = '#d42a3a', NAVY = '#1f3a5c', k = (a, b) => clamp((t - a) / (b - a), 0, 1);
+  // horns: sweep in from the middle
+  const kh = k(0.05, 0.55);
+  g.save(); g.globalAlpha = kh; g.translate(135, 40); g.scale(0.6 + 0.4 * eOutBack(kh), 1); g.translate(-135, -40);
+  g.fillStyle = W; g.beginPath();
+  g.moveTo(0, 0); g.quadraticCurveTo(30, 50, 80, 50); g.lineTo(190, 50); g.quadraticCurveTo(240, 50, 270, 0);
+  g.quadraticCurveTo(270, 35, 250, 60); g.quadraticCurveTo(230, 80, 190, 80); g.lineTo(80, 80); g.quadraticCurveTo(40, 80, 20, 60); g.quadraticCurveTo(2, 40, 0, 0);
+  g.closePath(); g.fill(); g.restore();
+  // the V draws down from the top
+  const kv = eOut(k(0.35, 0.8));
+  if (kv > 0) {
+    g.save(); g.beginPath(); g.rect(0, 96, 270, 164 * kv + 2); g.clip();
+    g.fillStyle = W; g.beginPath(); g.moveTo(45, 100); g.lineTo(173, 100); g.lineTo(110, 257); g.closePath(); g.fill(); g.restore();
+  }
+  // two red stripes slide in along their own diagonal
+  [[181, 203, 0.6], [212, 235, 0.72]].forEach(([x0, x1, a]) => {
+    const ks = eOut(k(a, a + 0.35)); if (ks <= 0) return;
+    const off = (1 - ks) * 60;
+    g.save(); g.globalAlpha = ks; g.translate(off * 0.4, -off); g.fillStyle = R; g.beginPath();
+    g.moveTo(x0, 100); g.lineTo(x1, 100); g.lineTo(x1 - 63, 257); g.lineTo(x0 - 63, 257); g.closePath(); g.fill(); g.restore();
+  });
+  // star pops
+  const kst = k(0.95, 1.3);
+  if (kst > 0) {
+    g.save(); g.translate(141, 132); g.rotate((1 - kst) * -2.4); g.scale(eOutBack(kst), eOutBack(kst)); g.fillStyle = NAVY; g.beginPath();
+    for (let i = 0; i < 10; i++) { const an = -Math.PI / 2 + i * Math.PI / 5, rad = i % 2 ? 6 : 15; g.lineTo(Math.cos(an) * rad, Math.sin(an) * rad); }
+    g.closePath(); g.fill(); g.restore();
+  }
+  // wordmark: GREY BULL wipes on left to right, RESCUE opens up underneath
+  const kw = eOut(k(0.8, 1.45));
+  if (kw > 0) {
+    g.save(); g.beginPath(); g.rect(315, 0, 680 * kw, 205); g.clip();
+    g.font = `800 196px "Big Shoulders Stencil Display", ${DISPLAY}`; g.textBaseline = 'alphabetic'; g.textAlign = 'left'; g.fillStyle = W;
+    g.letterSpacing = '6px';
+    const fit = 670 / g.measureText('GREY BULL').width;   // fit the wordmark to the lockup whatever face loaded
+    g.translate(318, 182); g.scale(fit, 1); g.fillText('GREY BULL', 0, 0); g.restore();
+  }
+  const kr = eOut(k(1.3, 1.8));
+  if (kr > 0) {
+    g.save(); g.globalAlpha = kr; g.font = `700 64px ${FONT}`; g.textAlign = 'center'; g.fillStyle = W;
+    g.letterSpacing = `${18 + 12 * kr}px`; g.fillText('RESCUE', 655, 255); g.restore();
+  }
+}
+// draws the lockup centred on (cx, cy), h px tall; a light sweep crosses it after it builds, then every 7 s
+function drawLogo(cx, cy, h, t) {
+  const sc = h / LOGO_H, w = LOGO_W * sc, px = Math.ceil(dpr * scale * sc * 100) / 100;
+  if (!logoCv) logoCv = document.createElement('canvas');
+  logoCv.width = Math.ceil(LOGO_W * px) + 4; logoCv.height = Math.ceil(LOGO_H * px) + 4;
+  const g = logoCv.getContext('2d'); g.setTransform(px, 0, 0, px, 2, 2); g.clearRect(-2, -2, LOGO_W + 4, LOGO_H + 4);
+  logoArt(g, t);
+  const sweep = t < 2.5 ? (t - 1.7) / 0.8 : ((t - 2.5) % 7) / 0.8;
+  if (sweep > 0 && sweep < 1) {
+    g.globalCompositeOperation = 'source-atop';
+    const x = -200 + sweep * (LOGO_W + 400), sg = g.createLinearGradient(x - 120, 0, x + 120, 0);
+    sg.addColorStop(0, 'rgba(255,255,255,0)'); sg.addColorStop(0.5, 'rgba(160,200,255,0.75)'); sg.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = sg; g.fillRect(-2, -2, LOGO_W + 4, LOGO_H + 4); g.globalCompositeOperation = 'source-over';
+  }
+  ctx.drawImage(logoCv, cx - w / 2 - 2 / px * sc, cy - h / 2 - 2 / px * sc, logoCv.width / px * sc, logoCv.height / px * sc);
 }
 
 // ----------------------------------------------------------- ops center ----
@@ -955,7 +1034,7 @@ function lgrad(x0, y0, x1, y1, c0, c1) { const g = ctx.createLinearGradient(x0, 
 function bust(kind, x, y, t, talking) {
   const br = Math.sin(t * 1.6 + (kind === 'bryan' ? 1.3 : 0)) * 0.9, mouth = talking ? 1.5 + Math.abs(Math.sin(t * 13)) * 2.5 : 1;
   ctx.save(); ctx.translate(x, y + br);
-  if (talking) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(0, kind === 'bryan' ? -70 : -50, 110, kind === 'bryan' ? 'rgba(214,166,64,A)' : 'rgba(95,208,154,A)', 0.16); ctx.restore(); }
+  if (talking) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(0, kind === 'bryan' ? -70 : -50, 110, kind === 'bryan' ? 'rgba(229,72,77,A)' : 'rgba(95,208,154,A)', 0.16); ctx.restore(); }
   if (kind === 'olivia') {
     ctx.fillStyle = '#121a22'; rr(-40, -86, 80, 120, 18); ctx.fill();                                  // chair back
     ctx.fillStyle = '#6b2f1c'; ctx.beginPath(); ctx.ellipse(2, -58, 21, 27, 0, 0, Math.PI * 2); ctx.fill();   // hair behind
@@ -1013,8 +1092,8 @@ function drawOps(t) {
   ctx.globalCompositeOperation = 'lighter';
   for (let x = 80; x < VW; x += 200) { ctx.fillStyle = 'rgba(170,200,230,0.5)'; ctx.fillRect(x - 40, 0, 80, 2); glow(x, 0, 90, 'rgba(120,170,220,A)', 0.13); }
   ctx.globalCompositeOperation = 'source-over';
-  txt('GREY BULL RESCUE', 40, 30, 11, 'rgba(214,166,64,0.75)', 'left', 900);
-  txt('OPERATIONS CENTER · TAMPA, FL', 40, 44, 8, 'rgba(160,180,200,0.5)', 'left', 800);
+  txt('GREY BULL RESCUE', 40, 30, 11, 'rgba(229,72,77,0.75)', 'left', 900);
+  txt('OPERATIONS CENTER · TAMPA, FL', 40, 44, 8, 'rgba(170,190,210,0.8)', 'left', 800);
   ctx.restore();
   ctx.save(); ctx.translate(sway, 0);
   // main map
@@ -1026,13 +1105,13 @@ function drawOps(t) {
   const [tx, ty] = P(-82.46, 27.95), [kx, ky] = P(-82.55, 27.27);
   ctx.strokeStyle = 'rgba(229,83,75,0.55)'; ctx.setLineDash([4, 4]); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(sx - 20, sy + 120); ctx.quadraticCurveTo(sx - 10, sy + 40, sx, sy); ctx.quadraticCurveTo(sx + 20, sy - 60, sx + 50, sy - 140); ctx.stroke(); ctx.setLineDash([]);
   marker(tx, ty, '95,208,154', 'TAMPA HQ', t);
-  marker(kx, ky, '214,166,64', 'SIESTA KEY', t);
-  if (answered) { ctx.strokeStyle = 'rgba(214,166,64,0.7)'; ctx.lineWidth = 1.2; const r = 10 + ((t * 20) % 22); ctx.beginPath(); ctx.arc(kx, ky, r, 0, Math.PI * 2); ctx.stroke(); }
+  marker(kx, ky, '229,72,77', 'SIESTA KEY', t);
+  if (answered) { ctx.strokeStyle = 'rgba(229,72,77,0.7)'; ctx.lineWidth = 1.2; const r = 10 + ((t * 20) % 22); ctx.beginPath(); ctx.arc(kx, ky, r, 0, Math.PI * 2); ctx.stroke(); }
   ctx.fillStyle = 'rgba(120,200,255,0.06)'; ctx.fillRect(R.x, R.y + ((t * 0.25) % 1) * R.h, R.w, 18);
   ctx.fillStyle = 'rgba(120,20,20,0.88)'; ctx.fillRect(R.x, R.y + R.h - 18, R.w, 18);
   const tick = 'HURRICANE HELENE  ·  STORM SURGE WARNING  ·  SARASOTA COUNTY  ·  911 CENTERS OVERWHELMED  ·  ROADS IMPASSABLE  ·  ';
-  ctx.font = `800 10px ${FONT}`; const tw = ctx.measureText(tick).width, tx0 = R.x - ((t * 50) % tw);
-  for (let x = tx0; x < R.x + R.w; x += tw) txt(tick, x, R.y + R.h - 5, 10, '#ffd7d2', 'left', 800);
+  const tickW = tw(tick, 10, 800), tx0 = R.x - ((t * 50) % tickW);
+  for (let x = tx0; x < R.x + R.w; x += tickW) txt(tick, x, R.y + R.h - 5, 10, '#ffd7d2', 'left', 800);
   ctx.restore();
   panel(R.x + 8, R.y + 8, 300, 40, 6);
   txt('HURRICANE HELENE · STORM SURGE · GULF COAST, FL', R.x + 18, R.y + 24, 10, '#ff9a90', 'left', 800);
@@ -1046,7 +1125,7 @@ function drawOps(t) {
     if (live || (ring && Math.sin(t * 8) > 0)) { ctx.fillStyle = live ? 'rgba(92,214,138,0.14)' : 'rgba(229,83,75,0.16)'; ctx.fillRect(44, y - 2, 192, 16); }
     txt(n, 50, y + 10, 10, '#e6edf3', 'left', 700); txt(where, 118, y + 10, 9, '#8a9cad', 'left', 600);
     const st = live ? 'CONNECTED' : ring ? 'RINGING' : 'QUEUED', col = live ? '#5cd68a' : ring ? RED : '#6f8193';
-    ctx.font = `900 7px ${FONT}`; const sw = ctx.measureText(st).width + 10;
+    const sw = tw(st, 7, 900) + 10;
     rr(232 - sw, y + 1, sw, 11, 5); ctx.fillStyle = col; ctx.globalAlpha = 0.22; ctx.fill(); ctx.globalAlpha = 1; txt(st, 232 - sw / 2, y + 9, 7, col, 'center', 900);
   });
   // left: surge chart
@@ -1077,7 +1156,7 @@ function drawOps(t) {
   if (callLive) txt(`00:${String(Math.min(59, Math.floor(opsCallT))).padStart(2, '0')}`, 910, 204, 10, '#5cd68a', 'right', 900);
   ctx.restore();
   // background staff
-  for (const [sxp, col] of [[140, 'rgba(95,208,154,A)'], [835, 'rgba(214,166,64,A)']]) {
+  for (const [sxp, col] of [[140, 'rgba(95,208,154,A)'], [835, 'rgba(229,72,77,A)']]) {
     ctx.fillStyle = '#0a1117'; rr(sxp - 30, 286, 46, 28, 3); ctx.fill();
     ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(sxp - 8, 298, 42, col, 0.13); ctx.restore();
     ctx.fillStyle = '#101820'; rr(sxp + 16, 290, 30, 30, 9); ctx.fill(); ctx.beginPath(); ctx.arc(sxp + 31, 281, 10, 0, Math.PI * 2); ctx.fill();
@@ -1104,7 +1183,7 @@ function drawOps(t) {
   ctx.strokeStyle = 'rgba(220,230,240,0.25)'; ctx.lineWidth = 1.5; for (let k = 0; k < 2; k++) { ctx.beginPath(); const o = ((t * 12 + k * 9) % 18); ctx.moveTo(441 + k * 5, 302 - o); ctx.quadraticCurveTo(446 + k * 5, 296 - o, 441 + k * 5, 290 - o); ctx.stroke(); }
   for (const [nx, label, col] of [[392, 'OLIVIA · OPERATIONS', TEAL], [640, 'BRYAN · TEAM LEAD', ORANGE]]) {
     if (nx === 640 && !activated) continue;
-    ctx.font = `900 9px ${FONT}`; const w = ctx.measureText(label).width + 18;
+    const w = tw(label, 9, 900) + 18;
     rr(nx - w / 2, 344, w, 18, 4); ctx.fillStyle = 'rgba(10,16,22,0.9)'; ctx.fill(); ctx.strokeStyle = col; ctx.globalAlpha = 0.6; ctx.lineWidth = 1; ctx.stroke(); ctx.globalAlpha = 1;
     txt(label, nx, 356, 9, col, 'center', 900);
   }
@@ -1122,7 +1201,7 @@ function drawOps(t) {
   ctx.restore();
   ctx.strokeStyle = sp.col; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(84, 456, 34, 0, Math.PI * 2); ctx.stroke();
   txt(sp.label, 136, 420, 12, sp.col, 'left', 900);
-  if (line.who === 'CALLER') txt('ON THE LINE', 136 + (ctx.measureText(sp.label).width) + 12, 420, 9, '#5cd68a', 'left', 900);
+  if (line.who === 'CALLER') txt('ON THE LINE', 136 + tw(sp.label, 12, 900) + 14, 420, 9, '#5cd68a', 'left', 900);
   const typed = opsChars(), done = typed >= line.text.length;
   drawWrapped(line.text, 136, 450, 760, 19, '#eef2f6', 26, typed);
   for (let i = 1; i < SCRIPT.length; i++) { ctx.fillStyle = i < opsIdx ? sp.col : i === opsIdx ? '#fff' : 'rgba(255,255,255,0.15)'; ctx.beginPath(); ctx.arc(136 + (i - 1) * 11, 505, i === opsIdx ? 3 : 2.2, 0, Math.PI * 2); ctx.fill(); }
@@ -1142,7 +1221,7 @@ function toggleKit(i) {
   audio.beep();
 }
 function kitIcon(k, x, y) {
-  ctx.save(); ctx.translate(x, y); ctx.lineWidth = 4; ctx.strokeStyle = ORANGE; ctx.fillStyle = ORANGE; ctx.shadowColor = 'rgba(214,166,64,0.6)'; ctx.shadowBlur = 14;
+  ctx.save(); ctx.translate(x, y); ctx.lineWidth = 4; ctx.strokeStyle = ORANGE; ctx.fillStyle = ORANGE; ctx.shadowColor = 'rgba(229,72,77,0.6)'; ctx.shadowBlur = 14;
   if (k === 'fuel') { rr(-18, -22, 36, 46, 5); ctx.stroke(); ctx.fillRect(-10, -30, 14, 8); ctx.fillRect(-12, 0, 24, 18); }
   if (k === 'starlink') { ctx.beginPath(); ctx.ellipse(0, -6, 24, 12, -0.4, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, 4); ctx.lineTo(0, 24); ctx.moveTo(-12, 24); ctx.lineTo(12, 24); ctx.stroke(); for (let a = 0; a < 3; a++) { ctx.beginPath(); ctx.arc(10, -20, 8 + a * 7, -1.4, -0.3); ctx.stroke(); } }
   if (k === 'medic') { ctx.fillRect(-7, -22, 14, 44); ctx.fillRect(-22, -7, 44, 14); }
@@ -1158,7 +1237,7 @@ function drawLoadout(t) {
   KIT.forEach((kit, i) => {
     const x = 90 + i * 270, y = 160, w = 240, h = 240, on = has(kit.k);
     const hov = mouse && mouse.x > x && mouse.x < x + w && mouse.y > y && mouse.y < y + h;
-    if (on) { ctx.save(); ctx.shadowColor = 'rgba(214,166,64,0.45)'; ctx.shadowBlur = 30; rr(x, y, w, h, 14); ctx.fillStyle = '#1b2519'; ctx.fill(); ctx.restore(); }
+    if (on) { ctx.save(); ctx.shadowColor = 'rgba(229,72,77,0.45)'; ctx.shadowBlur = 30; rr(x, y, w, h, 14); ctx.fillStyle = '#1b2519'; ctx.fill(); ctx.restore(); }
     rr(x, y, w, h, 14);
     const cg = ctx.createLinearGradient(0, y, 0, y + h); cg.addColorStop(0, on ? '#25321f' : '#152230'); cg.addColorStop(1, on ? '#141c12' : '#0b131b');
     ctx.fillStyle = cg; ctx.fill();
@@ -1188,14 +1267,14 @@ function drawDeploy(t) {
   const segs = []; let tot = 0; for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); segs.push(d); tot += d; }
   const k = clamp(t / 4.5, 0, 1), e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
   let rem = e * tot, cur = pts[0], ang = 0;
-  ctx.save(); ctx.shadowColor = 'rgba(214,166,64,0.8)'; ctx.shadowBlur = 10; ctx.strokeStyle = ORANGE; ctx.lineWidth = 3; ctx.setLineDash([10, 7]); ctx.lineDashOffset = -t * 30; ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+  ctx.save(); ctx.shadowColor = 'rgba(143,182,232,0.8)'; ctx.shadowBlur = 10; ctx.strokeStyle = BLUE; ctx.lineWidth = 3; ctx.setLineDash([10, 7]); ctx.lineDashOffset = -t * 30; ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
   for (let i = 1; i < pts.length && rem > 0; i++) {
     const d = segs[i - 1], f = Math.min(1, rem / d); const x = pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * f, y = pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * f;
     ctx.lineTo(x, y); cur = [x, y]; ang = Math.atan2(pts[i][1] - pts[i - 1][1], pts[i][0] - pts[i - 1][0]); rem -= d;
   }
   ctx.stroke(); ctx.restore();
   marker(pts[0][0], pts[0][1], '79,143,191', 'TAMPA HQ', t);
-  marker(pts[pts.length - 1][0], pts[pts.length - 1][1], '214,166,64', 'SIESTA KEY', t, 'right');
+  marker(pts[pts.length - 1][0], pts[pts.length - 1][1], '235,240,246', 'SIESTA KEY', t, 'right');
   ctx.save(); ctx.translate(cur[0], cur[1]); ctx.rotate(ang); ctx.fillStyle = '#f3f6f9'; rr(-9, -5, 18, 10, 2); ctx.fill(); ctx.fillStyle = ORANGE; ctx.fillRect(5, -5, 4, 10); ctx.restore();
   if (ctx.createConicGradient) {
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
@@ -1212,7 +1291,7 @@ function drawDeploy(t) {
   txt('GBR // OPERATION HURRICANE', VW - 24, 100, 12, TEAL, 'right', 700);
   // legend
   panel(VW - 214, VH - 124, 190, 84, 5);
-  [['rgba(210,58,53,0.9)', 'STORM ZONE'], ['#4f8fbf', 'FORWARD BASE'], ['#d6a640', 'OBJECTIVE']].forEach(([c, l], i) => {
+  [['rgba(210,58,53,0.9)', 'STORM ZONE'], ['#4f8fbf', 'FORWARD BASE'], ['#f3f6f9', 'OBJECTIVE']].forEach(([c, l], i) => {
     ctx.strokeStyle = c; ctx.lineWidth = 1.5; ctx.strokeRect(VW - 198, VH - 108 + i * 22, 10, 10); ctx.fillStyle = c.replace('0.9', '0.35'); ctx.globalAlpha = 0.45; ctx.fillRect(VW - 198, VH - 108 + i * 22, 10, 10); ctx.globalAlpha = 1;
     txt(l, VW - 180, VH - 99 + i * 22, 11, '#dfe6ee', 'left', 600);
   });
@@ -1286,7 +1365,6 @@ function updFly(dt) {
     if (gap <= 1 && !F.endT) {
       on.forEach(sv => { sv.state = 'lost'; F.lost++; });
       F.lostMarks.push({ x: hs.x + hs.w / 2, names: on.map(sv => sv.name).join(', ') });
-      F.floats.push({ x: hs.x + hs.w / 2, y: hs.y - 50, t: 0, text: 'OUT OF REACH', bad: true });
       radio('OLIVIA', "That roof is under water. We can't reach them now. Our ground teams will go in at dawn.", 'o_lost'); audio.warn();
     }
   }
@@ -1501,10 +1579,10 @@ function drawFly() {
     drawPerson(s.x, s.roofY - 1, s.shirt, danger ? t * 1.9 : t, s.phase, s.kid, true, true);
     if (s.spotted && (Math.abs(s.x - h.x) < 320 || danger || s.primary)) {
       const label = (s.primary ? '★ ' : '') + s.name + (s.newT ? '  NEW' : '');
-      ctx.font = `700 11px ${FONT}`; const w = ctx.measureText(label).width + 14;
-      rr(s.x - w / 2, s.roofY - 62, w, 17, 8); ctx.fillStyle = danger ? 'rgba(150,30,25,0.85)' : s.primary ? 'rgba(120,80,10,0.9)' : 'rgba(6,10,15,0.7)'; ctx.fill();
-      if (s.primary) { ctx.strokeStyle = '#ffd24a'; ctx.lineWidth = 1.5; ctx.stroke(); }
-      txt(label, s.x, s.roofY - 50, 11, s.primary ? '#ffe9a8' : '#fff', 'center', 800);
+      const w = tw(label, 11, 700) + 14;
+      rr(s.x - w / 2, s.roofY - 62, w, 17, 8); ctx.fillStyle = danger ? 'rgba(150,30,25,0.85)' : s.primary ? 'rgba(31,58,92,0.95)' : 'rgba(6,10,15,0.7)'; ctx.fill();
+      if (s.primary) { ctx.strokeStyle = BLUE; ctx.lineWidth = 1.5; ctx.stroke(); }
+      txt(label, s.x, s.roofY - 50, 11, s.primary ? '#e3eeff' : '#fff', 'center', 800);
     }
     if (danger && Math.sin(t * 9) > -0.2) { ctx.fillStyle = RED; ctx.beginPath(); ctx.arc(s.x, s.roofY - 74, 8, 0, Math.PI * 2); ctx.fill(); txt('!', s.x, s.roofY - 70, 12, '#fff', 'center', 900); }
   }
@@ -1530,7 +1608,7 @@ function drawFly() {
     const y = waveY(m.x, t) - 6;
     ctx.fillStyle = ORANGE; ctx.beginPath(); ctx.moveTo(m.x - 9, y + 6); ctx.lineTo(m.x + 9, y + 6); ctx.lineTo(m.x + 5, y - 10); ctx.lineTo(m.x - 5, y - 10); ctx.fill();
     ctx.strokeStyle = '#3a1a08'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(m.x - 4, y - 7); ctx.lineTo(m.x + 4, y + 3); ctx.moveTo(m.x + 4, y - 7); ctx.lineTo(m.x - 4, y + 3); ctx.stroke();
-    ctx.font = `800 10px ${FONT}`; const label = 'OUT OF REACH · ' + m.names, w = ctx.measureText(label).width + 14;
+    const label = 'OUT OF REACH · ' + m.names, w = tw(label, 10, 800) + 14;
     rr(m.x - w / 2, y - 34, w, 16, 8); ctx.fillStyle = 'rgba(40,10,8,0.8)'; ctx.fill(); txt(label, m.x, y - 22, 10, '#ffb3ad', 'center', 800);
   }
   drawParts();
@@ -1552,9 +1630,9 @@ function drawFly() {
   const pri = survivors.filter(sv => sv.primary && sv.state === 'roof');
   if (pri.length && pri[0].x - F.cam > VW - 20) { // edge arrow to the primary objective
     const ay = 190, pulse = 1 + Math.sin(F.t * 6) * 0.08;
-    ctx.save(); ctx.translate(VW - 26, ay); ctx.scale(pulse, pulse); ctx.fillStyle = '#ffd24a'; ctx.beginPath(); ctx.moveTo(16, 0); ctx.lineTo(-6, -12); ctx.lineTo(-6, 12); ctx.fill(); ctx.restore();
-    ctx.font = `800 11px ${FONT}`; const lab = `★ TOM & LINDA  ${((pri[0].x - F.heli.x) / 1000).toFixed(1)} km`, w = ctx.measureText(lab).width + 16;
-    rr(VW - 40 - w, ay - 10, w, 20, 10); ctx.fillStyle = 'rgba(40,28,4,0.85)'; ctx.fill(); txt(lab, VW - 40 - w / 2, ay + 4, 11, '#ffe9a8', 'center', 800);
+    ctx.save(); ctx.translate(VW - 26, ay); ctx.scale(pulse, pulse); ctx.fillStyle = BLUE; ctx.beginPath(); ctx.moveTo(16, 0); ctx.lineTo(-6, -12); ctx.lineTo(-6, 12); ctx.fill(); ctx.restore();
+    const lab = `★ TOM & LINDA  ${((pri[0].x - F.heli.x) / 1000).toFixed(1)} km`, w = tw(lab, 11, 800) + 16;
+    rr(VW - 40 - w, ay - 10, w, 20, 10); ctx.fillStyle = 'rgba(18,34,56,0.9)'; ctx.fill(); txt(lab, VW - 40 - w / 2, ay + 4, 11, '#e3eeff', 'center', 800);
   }
   drawRain(1);
   if (LIT.flash > 0) { ctx.fillStyle = `rgba(210,225,255,${LIT.flash * 0.3})`; ctx.fillRect(0, 0, VW, VH); }
@@ -1571,7 +1649,7 @@ function drawFly() {
   if (F.jackpotT > 0) {
     const a = Math.min(1, F.jackpotT), s = 1 + Math.sin(F.t * 12) * 0.03;
     ctx.save(); ctx.globalAlpha = a; ctx.translate(VW / 2, 230); ctx.scale(s, s);
-    ctx.shadowColor = 'rgba(214,166,64,0.8)'; ctx.shadowBlur = 30;
+    ctx.shadowColor = 'rgba(229,72,77,0.8)'; ctx.shadowBlur = 30;
     rr(-300, -42, 600, 70, 12); ctx.fillStyle = 'rgba(10,14,20,0.9)'; ctx.fill(); ctx.strokeStyle = ORANGE; ctx.lineWidth = 3; ctx.stroke();
     ctx.shadowBlur = 0; txt('JACKPOT · JACKPOT · JACKPOT', 0, 6, 34, ORANGE, 'center', 900); ctx.restore();
   }
@@ -1587,7 +1665,7 @@ function drawFly() {
 }
 function drawHUD() {
   const h = F.heli;
-  panel(10, 10, 214, 96, 10);
+  panel(10, 10, 214, F.lost ? 112 : 96, 10);
   ctx.fillStyle = ORANGE; ctx.fillRect(10, 18, 3, 18);
   txt('OP HURRICANE', 22, 31, 11, ORANGE, 'left', 900);
 
@@ -1595,19 +1673,19 @@ function drawHUD() {
   txt('FUEL', 22, 54, 11, '#9fb3c6', 'left', 700);
   rr(62, 45, 150, 10, 5); ctx.fillStyle = '#1e2a35'; ctx.fill();
   rr(62, 45, Math.max(10, 150 * clamp(fr, 0, 1)), 10, 5);
-  ctx.fillStyle = fr > 0.5 ? '#5cd68a' : fr > 0.25 ? '#e6c14e' : (Math.sin(F.t * 10) > 0 ? RED : '#7a2a26'); ctx.fill();
+  ctx.fillStyle = fr > 0.5 ? '#5cd68a' : fr > 0.25 ? '#cfd8e3' : (Math.sin(F.t * 10) > 0 ? RED : '#7a2a26'); ctx.fill();
   txt('SAFE', 22, 77, 11, '#9fb3c6', 'left', 700); txt(`${F.rescued} / ${survivors.length}`, 62, 77, 13, '#f3f6f9', 'left', 800);
-  if (F.lost) txt(`LOST ${F.lost}`, 212, 77, 11, RED, 'right', 900);
   txt('SEATS', 122, 77, 11, '#9fb3c6', 'left', 700);
   txt(`${F.cabin.length} / ${CAP}`, 166, 77, 13, F.cabin.length >= CAP ? ORANGE : '#f3f6f9', 'left', 800);
   const pr = survivors.filter(sv => sv.primary), prSafe = pr.every(sv => sv.state === 'safe'), prAboard = pr.every(sv => sv.state === 'cabin' || sv.state === 'safe'), prLost = pr.some(sv => sv.state === 'lost');
-  txt(prLost ? '★ TOM & LINDA: OUT OF REACH' : prSafe ? '★ TOM & LINDA: HOME SAFE' : prAboard ? '★ TOM & LINDA ABOARD: GO HOME' : '★ PRIMARY: TOM & LINDA', 22, 97, 10, prLost ? RED : prSafe ? '#5cd68a' : '#ffd24a', 'left', 900);
+  txt(prLost ? '★ TOM & LINDA: OUT OF REACH' : prSafe ? '★ TOM & LINDA: HOME SAFE' : prAboard ? '★ TOM & LINDA ABOARD: GO HOME' : '★ PRIMARY: TOM & LINDA', 22, 97, 10, prLost ? RED : prSafe ? '#5cd68a' : BLUE, 'left', 900, 196);
+  if (F.lost) txt(`LOST TO THE SURGE: ${F.lost}`, 22, 114, 10, RED, 'left', 900, 196);
   const mx = 300, mw = 360, my = 12;
   panel(mx - 10, my - 4, mw + 20, 30, 8);
   ctx.fillStyle = '#2b3b48'; ctx.fillRect(mx, my + 12, mw, 3);
   ctx.fillStyle = TEAL; ctx.fillRect(mx, my + 8, BASE_W / WORLD_W * mw, 10);
   for (const s of survivors) if (s.state === 'roof' && (s.spotted || has('starlink'))) {
-    ctx.fillStyle = s.primary ? '#ffd24a' : s.spotted ? ORANGE : 'rgba(200,210,220,0.45)'; ctx.beginPath(); ctx.arc(mx + s.x / WORLD_W * mw, my + 13, s.primary ? 5 : 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = s.primary ? BLUE : s.spotted ? ORANGE : 'rgba(200,210,220,0.45)'; ctx.beginPath(); ctx.arc(mx + s.x / WORLD_W * mw, my + 13, s.primary ? 5 : 3.5, 0, Math.PI * 2); ctx.fill();
   }
   ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(mx + h.x / WORLD_W * mw, my + 13, 4.5, 0, Math.PI * 2); ctx.fill();
 
@@ -1615,7 +1693,7 @@ function drawHUD() {
   const left = Math.max(0, STORM_TIME - F.t), prog = clamp(F.t / STORM_TIME, 0, 1), urgent = left < 60;
   panel(mx - 10, 40, mw + 20, 26, 8, urgent && Math.sin(F.t * 8) > 0 ? RED : 'rgba(255,255,255,0.08)');
   rr(mx, 46, mw, 14, 7); ctx.fillStyle = '#1e2a35'; ctx.fill();
-  rr(mx, 46, Math.max(14, mw * prog), 14, 7); const sg = ctx.createLinearGradient(mx, 0, mx + mw, 0); sg.addColorStop(0, '#e6c14e'); sg.addColorStop(1, RED); ctx.fillStyle = sg; ctx.fill();
+  rr(mx, 46, Math.max(14, mw * prog), 14, 7); const sg = ctx.createLinearGradient(mx, 0, mx + mw, 0); sg.addColorStop(0, '#6f9fd8'); sg.addColorStop(1, RED); ctx.fillStyle = sg; ctx.fill();
   if (F.surgeT > 0 && Math.sin(F.t * 12) > 0) txt('▲ SURGE · WATER RISING', mx + mw / 2, 57, 11, '#fff', 'center', 900); else
   txt(F.over ? 'SURGE PEAK' : `SURGE PEAK IN ${fmtTime(left)}  ·  ${F.rescued + F.cabin.length} / ${survivors.length} SOULS`, mx + mw / 2, 57, 11, '#fff', 'center', 900);
   panel(752, 10, 164, 52, 10);
@@ -1634,9 +1712,10 @@ function drawHUD() {
     ctx.globalAlpha = clamp(a, 0, 1);
     // radio traffic lives in the bottom-left corner, clear of the flight path
     const lines = wrap(F.msg.text, 316, 13, 500).length, ph = 34 + lines * 16, py = VH - 12 - ph;
-    panel(12, py, 340, ph, 5, sp.col);
-    txt('◉ ' + sp.label, 24, py + 17, 10, sp.col, 'left', 800);
-    drawWrapped(F.msg.text, 24, py + 35, 316, 13, '#eef2f6', 16, Math.floor(F.msgT * 70));
+    const rx = isTouch ? 176 : 12;   // on touch screens the joystick owns the bottom-left corner
+    panel(rx, py, 340, ph, 5, sp.col);
+    txt('◉ ' + sp.label, rx + 12, py + 17, 10, sp.col, 'left', 800, 316);
+    drawWrapped(F.msg.text, rx + 12, py + 35, 316, 13, '#eef2f6', 16, Math.floor(F.msgT * 70));
     ctx.globalAlpha = 1;
   }
   let hint = '';
@@ -1653,8 +1732,8 @@ function drawHUD() {
   else if (F.lowFuel) hint = 'Low fuel. Return to base.';
   F.cabinFullHint = false;
   if (hint) {
-    ctx.font = `700 15px ${FONT}`; const w = ctx.measureText(hint).width + 36;
-    const hx = F.msg ? clamp(VW / 2 + 170, 364 + w / 2, VW - 12 - w / 2) : VW / 2;
+    const w = tw(hint, 15, 700) + 36;
+    const hx = F.msg ? clamp(VW / 2 + 170, (isTouch ? 528 : 364) + w / 2, VW - 12 - w / 2) : VW / 2;
     panel(hx - w / 2, 496, w, 32, 16);
     txt(hint, hx, 517, 15, '#f3f6f9', 'center', 700);
   }
@@ -1666,11 +1745,11 @@ function drawTouch() {
   ctx.beginPath(); ctx.arc(bx, by, STICK_R, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 2; ctx.stroke();
   const kx = bx + clamp((on ? stick.x - stick.ox : 0), -STICK_R, STICK_R), ky = by + clamp((on ? stick.y - stick.oy : 0), -STICK_R, STICK_R);
-  ctx.beginPath(); ctx.arc(kx, ky, 26, 0, Math.PI * 2); ctx.fillStyle = on ? 'rgba(214,166,64,0.85)' : 'rgba(255,255,255,0.3)'; ctx.fill();
+  ctx.beginPath(); ctx.arc(kx, ky, 26, 0, Math.PI * 2); ctx.fillStyle = on ? 'rgba(229,72,77,0.85)' : 'rgba(255,255,255,0.3)'; ctx.fill();
   if (!on) txt('DRAG TO FLY', bx, by + STICK_R + 22, 12, '#dfe6ee', 'center', 800);
   const hx = 850, hy = 420, hr = 62, hd = hoistTouches.size > 0 || F.hoistMode === 'down';
   ctx.globalAlpha = hd ? 0.95 : 0.6;
-  ctx.beginPath(); ctx.arc(hx, hy, hr, 0, Math.PI * 2); ctx.fillStyle = hd ? 'rgba(214,166,64,0.75)' : 'rgba(214,166,64,0.28)'; ctx.fill();
+  ctx.beginPath(); ctx.arc(hx, hy, hr, 0, Math.PI * 2); ctx.fillStyle = hd ? 'rgba(229,72,77,0.75)' : 'rgba(229,72,77,0.28)'; ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2; ctx.stroke();
   txt('HOIST', hx, hy + 2, 20, '#fff', 'center', 900); txt('tap', hx, hy + 22, 12, '#fff', 'center', 700);
   ctx.globalAlpha = 1;
@@ -1695,10 +1774,10 @@ function stars() {
   return 1;
 }
 function drawStar(x, y, r, on) {
-  ctx.save(); if (on) { ctx.shadowColor = 'rgba(214,166,64,0.8)'; ctx.shadowBlur = 18; }
+  ctx.save(); if (on) { ctx.shadowColor = 'rgba(143,182,232,0.9)'; ctx.shadowBlur = 18; }
   ctx.beginPath();
   for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rad = i % 2 ? r * 0.45 : r; ctx.lineTo(x + Math.cos(a) * rad, y + Math.sin(a) * rad); }
-  ctx.closePath(); ctx.fillStyle = on ? ORANGE : '#24323f'; ctx.fill(); ctx.restore();
+  ctx.closePath(); ctx.fillStyle = on ? '#f3f6f9' : '#24323f'; ctx.fill(); ctx.restore();
 }
 function drawDebrief(t) {
   const g = ctx.createLinearGradient(0, 0, 0, VH);
@@ -1780,6 +1859,17 @@ function render() {
   else if (scene === 'fly') drawFly();
   else if (scene === 'debrief') { drawDebrief(sceneT); post(); drawMute(); }
   ctx.restore();
+  // portrait phones: the 16:9 stage would shrink to a strip, so ask for landscape (drawn in screen pixels)
+  if (innerHeight > innerWidth * 1.05) {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const W = innerWidth, H = innerHeight, u = Math.min(W, 520) / 360;
+    ctx.fillStyle = 'rgba(8,11,13,0.94)'; ctx.fillRect(0, 0, W, H);
+    ctx.save(); ctx.translate(W / 2, H / 2 - 40 * u); ctx.rotate(-Math.PI / 2 * clamp((performance.now() / 1000 % 2.4 - 0.6) * 1.5, 0, 1));
+    ctx.strokeStyle = '#f3f6f9'; ctx.lineWidth = 3 * u; rr(-22 * u, -38 * u, 44 * u, 76 * u, 7 * u); ctx.stroke();
+    ctx.fillStyle = ORANGE; ctx.fillRect(-8 * u, 28 * u, 16 * u, 3 * u); ctx.restore();
+    txt('ROTATE YOUR PHONE', W / 2, H / 2 + 50 * u, 13 * u, TEAL, 'center', 700);
+    txt('Operation Hurricane plays in landscape.', W / 2, H / 2 + 76 * u, 15 * u, '#c3cfda', 'center', 500);
+  }
 }
 let last = performance.now();
 function frame(now) {
