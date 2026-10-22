@@ -42,7 +42,12 @@ const audio = {
     if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
     try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
     const c = this.ctx;
-    this.master = c.createGain(); this.master.gain.value = this.muted ? 0 : 0.6; this.master.connect(c.destination);
+    this.master = c.createGain(); this.master.gain.value = this.muted ? 0 : 0.9; this.master.connect(c.destination);
+    // background score: a slow, tense pad (Am - F - C - G) plus a pulse that quickens near the surge peak
+    const lpm = c.createBiquadFilter(); lpm.type = 'lowpass'; lpm.frequency.value = 700;
+    this.music = c.createGain(); this.music.gain.value = 0; lpm.connect(this.music); this.music.connect(this.master);
+    this.pad = [0, 1, 2, 3].map(i => { const o = c.createOscillator(); o.type = 'sawtooth'; o.detune.value = (i - 1.5) * 7; o.connect(lpm); o.start(); return o; });
+    this.chord = -1; this.beatT = 0;
     const len = c.sampleRate * 2, b = c.createBuffer(1, len, c.sampleRate), d = b.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     this.noise = b;
@@ -79,7 +84,52 @@ const audio = {
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.8, t + 0.06); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.4);
     s.connect(lp); lp.connect(g); g.connect(this.master); s.start(t); s.stop(t + 2.5);
   },
-  toggle() { this.muted = !this.muted; if (this.master) this.master.gain.value = this.muted ? 0 : 0.6; }
+  toggle() { this.muted = !this.muted; if (this.master) this.master.gain.value = this.muted ? 0 : 0.9; if (this.muted) this.hush(); },
+  // iOS: unlock audio inside a user gesture and switch to "playback" so the silent switch doesn't mute the game
+  unlock() {
+    this.init(); if (!this.ctx) return;
+    if (this.ctx.state !== 'running') this.ctx.resume();
+    try { const b = this.ctx.createBuffer(1, 1, 22050), s = this.ctx.createBufferSource(); s.buffer = b; s.connect(this.ctx.destination); s.start(0); } catch (e) {}
+    if (!this.tag) {
+      try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+      const n = 4000, buf = new ArrayBuffer(44 + n), v = new DataView(buf), w = (o, str) => { for (let i = 0; i < str.length; i++) v.setUint8(o + i, str.charCodeAt(i)); };
+      w(0, 'RIFF'); v.setUint32(4, 36 + n, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+      v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true); w(36, 'data'); v.setUint32(40, n, true);
+      for (let i = 0; i < n; i++) v.setUint8(44 + i, 128);
+      const a = new Audio(URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }))); a.loop = true; a.setAttribute('playsinline', '');
+      a.play().catch(() => {}); this.tag = a;
+    }
+    if (window.speechSynthesis && !this.spoke) { this.spoke = true; try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) {} }
+  },
+  // spoken radio and dialogue lines
+  voices: null,
+  pickVoice(fem) {
+    if (!window.speechSynthesis) return null;
+    if (!this.voices || !this.voices.length) this.voices = speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang));
+    const F = ['Samantha', 'Ava', 'Allison', 'Susan', 'Victoria', 'Karen', 'Zira', 'Jenny', 'Aria', 'Female', 'Google US English'];
+    const M = ['Daniel', 'Alex', 'Aaron', 'Tom', 'Fred', 'Evan', 'Nathan', 'Guy', 'David', 'Mark', 'Male', 'Google UK English Male'];
+    for (const name of (fem ? F : M)) { const v = this.voices.find(x => x.name.includes(name)); if (v) return v; }
+    return this.voices[0] || null;
+  },
+  say(who, text) {
+    if (this.muted || !window.speechSynthesis || who === 'SYS') return;
+    try {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text.replace(/·/g, ',')), fem = who !== 'BRYAN';
+      const v = this.pickVoice(fem); if (v) u.voice = v;
+      u.pitch = who === 'BRYAN' ? 0.8 : who === 'CALLER' ? 1.25 : 1.05; u.rate = who === 'CALLER' ? 1.08 : 1.02; u.volume = 1;
+      speechSynthesis.speak(u);
+    } catch (e) {}
+  },
+  hush() { try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {} },
+  score(dt, level, urgency) {
+    if (!this.ctx) return;
+    this.level('music', level);
+    const CH = [[110, 130.8, 164.8, 220], [87.3, 110, 130.8, 174.6], [65.4, 98, 130.8, 164.8], [98, 123.5, 146.8, 196]];
+    const k = Math.floor(this.ctx.currentTime / 4) % 4;
+    if (k !== this.chord) { this.chord = k; this.pad.forEach((o, i) => o.frequency.setTargetAtTime(CH[k][i], this.ctx.currentTime, 0.4)); }
+    if (level > 0) { this.beatT -= dt; if (this.beatT <= 0) { this.beatT = urgency ? 0.42 : 0.85; this.tone(urgency ? 62 : 52, 0.18, 'sine', urgency ? 0.32 : 0.18); } }
+  }
 };
 
 // ---------------------------------------------------------------- input ----
@@ -88,17 +138,17 @@ let mouse = null, isTouch = ('ontouchstart' in window) || navigator.maxTouchPoin
 function toV(e) { return { x: (e.clientX - ox) / scale, y: (e.clientY - oy) / scale }; }
 addEventListener('keydown', e => {
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
-  audio.init();
+  audio.unlock();
   if (!keys[e.code]) { keys[e.code] = true; onPress(e.code); }
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
-cv.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') return; audio.init(); const p = toV(e); mouse = p; onClick(p.x, p.y); });
+cv.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') return; audio.unlock(); const p = toV(e); mouse = p; onClick(p.x, p.y); });
 cv.addEventListener('pointermove', e => { if (e.pointerType !== 'touch') mouse = toV(e); });
 // Touch: drag anywhere on the left half to fly (virtual joystick); hold anywhere on the right half to lower the basket.
 const stick = { id: null, ox: 0, oy: 0, x: 0, y: 0 }, STICK_R = 60;
 const hoistTouches = new Set();
 function onTouchStart(e) {
-  e.preventDefault(); audio.init(); isTouch = true;
+  e.preventDefault(); audio.unlock(); isTouch = true;
   for (const t of e.changedTouches) {
     const p = toV(t);
     if (scene !== 'fly' || ui.some(b => p.x > b.x && p.x < b.x + b.w && p.y > b.y && p.y < b.y + b.h)) { onClick(p.x, p.y); continue; }
@@ -107,7 +157,7 @@ function onTouchStart(e) {
   }
 }
 function onTouchMove(e) { e.preventDefault(); for (const t of e.changedTouches) if (t.identifier === stick.id) { const p = toV(t); stick.x = p.x; stick.y = p.y; } }
-function onTouchEnd(e) { e.preventDefault(); for (const t of e.changedTouches) { if (t.identifier === stick.id) stick.id = null; hoistTouches.delete(t.identifier); } }
+function onTouchEnd(e) { e.preventDefault(); audio.unlock(); for (const t of e.changedTouches) { if (t.identifier === stick.id) stick.id = null; hoistTouches.delete(t.identifier); } }
 cv.addEventListener('touchstart', onTouchStart, { passive: false });
 cv.addEventListener('touchmove', onTouchMove, { passive: false });
 cv.addEventListener('touchend', onTouchEnd, { passive: false });
@@ -200,7 +250,7 @@ function post() {
 
 // ---------------------------------------------------------- scene mgmt ----
 let scene = 'title', sceneT = 0;
-function go(s) { scene = s; sceneT = 0; if (s !== 'fly') WATER_Y = WATER0; if (s === 'ops') { opsIdx = 0; opsT = 0; audio.ring(); } if (s === 'fly') initFly(); }
+function go(s) { scene = s; sceneT = 0; if (s !== 'fly') WATER_Y = WATER0; if (s === 'ops') { opsIdx = 0; opsT = 0; audio.ring(); } else if (s !== 'fly') audio.hush(); if (s === 'fly') initFly(); }
 function onPress(code) {
   if (code === 'KeyM') { audio.toggle(); return; }
   const adv = code === 'Space' || code === 'Enter';
@@ -647,6 +697,7 @@ function drawTitle(t) {
   txt('15 lives on the rooftops. One helicopter. Beat the storm surge before it peaks.', VW / 2, 270, 17, '#c3cfda', 'center', 500);
   button(VW / 2 - 120, 312, 240, 56, 'START MISSION', () => go('ops'), { size: 20 });
   txt(isTouch ? 'Drag on the left side to fly   ·   Tap the right side to lower the basket' : 'Arrows / WASD to fly   ·   Tap SPACE to lower the rescue basket   ·   M to mute', VW / 2, 398, 14, '#94a3b1', 'center', 500);
+  if (isTouch) txt('🔊 Sound on: turn up your volume', VW / 2, 488, 13, '#94a3b1', 'center', 600);
   if (innerHeight > innerWidth) { panel(VW / 2 - 190, 420, 380, 40, 20, ORANGE); txt('Turn your phone sideways for the best view', VW / 2, 446, 15, '#f3f6f9', 'center', 700); }
   txt('Concept prototype  ·  Dramatized from real Grey Bull Rescue hurricane responses  ·  Not an official Grey Bull Rescue product', VW / 2, 520, 12, '#66747f', 'center', 500);
 }
@@ -728,6 +779,7 @@ const opsChars = () => Math.floor(opsT * 48);
 function advanceOps() {
   if (opsChars() < SCRIPT[opsIdx].text.length) { opsT = 99; return; }
   opsIdx++; opsT = 0;
+  if (opsIdx < SCRIPT.length) audio.say(SCRIPT[opsIdx].who, SCRIPT[opsIdx].text);
   if (opsIdx >= SCRIPT.length) go('loadout');
 }
 const OPS_VIEW = { lon0: -90.2, lon1: -76.2, lat0: 24.0, lat1: 31.2 };
@@ -947,8 +999,8 @@ function updFly(dt) {
   F.bumpCD = Math.max(0, F.bumpCD - dt);
   F.wind = base + g; windNow = F.wind;
 
-  if (!F.msg && F.msgs.length) { F.msg = F.msgs.shift(); F.msgT = 0; audio.beep(); }
-  if (F.msg) { F.msgT += dt; if (F.msgT > 4.2) F.msg = null; }
+  if (!F.msg && F.msgs.length) { F.msg = F.msgs.shift(); F.msgT = 0; audio.beep(); audio.say(F.msg.who, F.msg.text); }
+  if (F.msg) { F.msgT += dt; if (F.msgT > Math.max(4.2, F.msg.text.length * 0.065)) F.msg = null; }
   F.jackpotT = Math.max(0, F.jackpotT - dt);
   if (F.banner) { F.banner.t += dt; if (F.banner.t > 3) F.banner = null; }
   for (const f of F.floats) { f.t += dt; f.y -= 24 * dt; }
@@ -1225,7 +1277,7 @@ function drawHUD() {
   }
   drawMute();
   if (F.msg) {
-    const sp = SPEAKERS[F.msg.who], a = Math.min(1, F.msgT * 4, (4.2 - F.msgT) * 3);
+    const sp = SPEAKERS[F.msg.who], dur = Math.max(4.2, F.msg.text.length * 0.065), a = Math.min(1, F.msgT * 4, (dur - F.msgT) * 3);
     ctx.globalAlpha = clamp(a, 0, 1);
     panel(250, 72, 460, 64, 10, sp.col);
     txt('◉ ' + sp.label, 264, 90, 11, sp.col, 'left', 800);
@@ -1329,8 +1381,9 @@ function update(dt) {
   if (scene === 'deploy' && sceneT > 6.4) go('fly');
   updWeather(dt, scene === 'fly' || scene === 'title');
   const flying = scene === 'fly' && F && !F.heli.landed;
-  audio.level('rotor', scene === 'fly' ? (flying ? 0.32 : 0.14) : 0);
-  audio.level('rain', scene === 'fly' ? 0.06 : scene === 'title' ? 0.05 : scene === 'ops' ? 0.015 : 0.01);
+  audio.level('rotor', scene === 'fly' ? (flying ? 0.5 : 0.22) : 0);
+  audio.score(dt, scene === 'fly' ? 0.07 : scene === 'debrief' ? 0.04 : 0.05, scene === 'fly' && F && STORM_TIME - F.t < 60 && !F.endT);
+  audio.level('rain', scene === 'fly' ? 0.1 : scene === 'title' ? 0.08 : scene === 'ops' ? 0.03 : 0.02);
 }
 function render() {
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#05080c'; ctx.fillRect(0, 0, cv.width, cv.height);
@@ -1351,7 +1404,7 @@ function frame(now) {
   update(dt); render(); requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__game = { go, get F() { return F; }, get scene() { return scene; }, get survivors() { return survivors; }, setPicked(p) { picked = p; }, update, keys };
+window.__game = { go, get F() { return F; }, get scene() { return scene; }, get survivors() { return survivors; }, setPicked(p) { picked = p; }, update, keys, audio };
 </script>
 </body>
 </html>
