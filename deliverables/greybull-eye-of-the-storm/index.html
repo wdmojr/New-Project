@@ -275,7 +275,7 @@ let scene = 'title', sceneT = 0;
 function go(s) {
   scene = s; sceneT = 0; if (s !== 'fly') WATER_Y = WATER0;
   if (s === 'intro') introLast = -1;
-  if (s === 'ops') { opsIdx = 0; opsT = 0; ringT = 0; } else if (s !== 'fly') audio.hush();
+  if (s === 'ops') { opsIdx = 0; opsT = 0; ringT = 0; opsCallT = 0; } else if (s !== 'fly') audio.hush();
   if (s === 'loadout') audio.say('BRYAN', '', 'bq6');
   if (s === 'deploy') audio.say('BRYAN', '', 'bq5', true);
   if (s === 'debrief') debriefSaid = false;
@@ -868,7 +868,7 @@ const SCRIPT = [
   { k: 'o5', who: 'OLIVIA', text: 'Operation HURRICANE is a go. Good luck, recruit.' }
 ];
 const ACT_IDX = SCRIPT.findIndex(l => l.k === 'o4'), PILOT_IDX = SCRIPT.findIndex(l => l.k === 'b2');
-let opsIdx = 0, opsT = 0;
+let opsIdx = 0, opsT = 0, opsCallT = 0;
 const opsChars = () => Math.floor(opsT * 48);
 function advanceOps(force) {
   const line = SCRIPT[opsIdx];
@@ -897,12 +897,74 @@ function screenFrame(x, y, w, h) {
   ctx.save(); ctx.shadowColor = 'rgba(80,170,220,0.35)'; ctx.shadowBlur = 30; rr(x - 6, y - 6, w + 12, h + 12, 8); ctx.fillStyle = '#0d141b'; ctx.fill(); ctx.restore();
   rr(x - 6, y - 6, w + 12, h + 12, 8); ctx.strokeStyle = '#26323e'; ctx.lineWidth = 2; ctx.stroke();
 }
+function lgrad(x0, y0, x1, y1, c0, c1) { const g = ctx.createLinearGradient(x0, y0, x1, y1); g.addColorStop(0, c0); g.addColorStop(1, c1); return g; }
+// Illustrated busts. (x, y) = middle of the shoulder line; everything below y is hidden by the desk.
+function bust(kind, x, y, t, talking) {
+  const br = Math.sin(t * 1.6 + (kind === 'bryan' ? 1.3 : 0)) * 0.9, mouth = talking ? 1.5 + Math.abs(Math.sin(t * 13)) * 2.5 : 1;
+  ctx.save(); ctx.translate(x, y + br);
+  if (talking) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(0, kind === 'bryan' ? -70 : -50, 110, kind === 'bryan' ? 'rgba(246,162,60,A)' : 'rgba(79,209,197,A)', 0.16); ctx.restore(); }
+  if (kind === 'olivia') {
+    ctx.fillStyle = '#121a22'; rr(-40, -86, 80, 120, 18); ctx.fill();                                  // chair back
+    ctx.fillStyle = '#6b2f1c'; ctx.beginPath(); ctx.ellipse(2, -58, 21, 27, 0, 0, Math.PI * 2); ctx.fill();   // hair behind
+    ctx.beginPath(); ctx.ellipse(20, -40, 7, 16, -0.4, 0, Math.PI * 2); ctx.fill();                        // ponytail
+    ctx.fillStyle = lgrad(-40, 0, 40, 0, '#2f5868', '#18303b'); ctx.beginPath();                          // fleece
+    ctx.moveTo(-42, 40); ctx.quadraticCurveTo(-42, -16, -14, -24); ctx.lineTo(14, -24); ctx.quadraticCurveTo(42, -16, 42, 40); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, -22); ctx.lineTo(0, 40); ctx.stroke();
+    ctx.fillStyle = '#244652'; ctx.beginPath(); ctx.moveTo(-12, -25); ctx.lineTo(0, -12); ctx.lineTo(12, -25); ctx.lineTo(8, -30); ctx.lineTo(-8, -30); ctx.fill();   // collar
+    ctx.fillStyle = TEAL; rr(-30, -8, 14, 9, 2); ctx.fill(); ctx.fillStyle = '#0b1a1e'; ctx.font = `900 5px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('OPS', -23, -1.5);
+    ctx.fillStyle = '#c9967a'; ctx.fillRect(-6, -36, 12, 12);                                            // neck
+    ctx.fillStyle = lgrad(-15, 0, 15, 0, '#e4b99c', '#b07e62'); ctx.beginPath(); ctx.ellipse(0, -54, 14.5, 18, 0, 0, Math.PI * 2); ctx.fill();   // face
+    ctx.fillStyle = '#2a1a14'; ctx.beginPath(); ctx.ellipse(-5.5, -55, 1.8, 2.2, 0, 0, Math.PI * 2); ctx.ellipse(5.5, -55, 1.8, 2.2, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#5a2a18'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(-9, -60); ctx.lineTo(-3, -61); ctx.moveTo(3, -61); ctx.lineTo(9, -60); ctx.stroke();
+    ctx.fillStyle = '#8a4a3a'; ctx.beginPath(); ctx.ellipse(0, -44, 3.5, mouth * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(220,120,100,0.25)'; ctx.beginPath(); ctx.arc(-8, -49, 3, 0, Math.PI * 2); ctx.arc(8, -49, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#7a3820'; ctx.beginPath(); ctx.moveTo(-15, -56); ctx.quadraticCurveTo(-16, -76, 2, -74); ctx.quadraticCurveTo(16, -74, 15, -58); ctx.quadraticCurveTo(8, -68, -4, -66); ctx.quadraticCurveTo(-11, -64, -15, -56); ctx.fill();   // fringe
+    ctx.strokeStyle = '#1d2a30'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, -56, 18, Math.PI * 1.08, Math.PI * 1.92); ctx.stroke();   // headset band
+    ctx.fillStyle = '#1d2a30'; rr(-20, -60, 6, 12, 2); ctx.fill(); ctx.fillStyle = TEAL; ctx.fillRect(-19, -58, 4, 2);
+    ctx.strokeStyle = '#1d2a30'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(-17, -50); ctx.quadraticCurveTo(-14, -42, -5, -43); ctx.stroke();
+    if (talking) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(-5, -43, 5, 'rgba(79,209,197,A)', 0.9); ctx.restore(); }
+  } else {
+    ctx.fillStyle = lgrad(-46, 0, 46, 0, '#565b42', '#2e3124'); ctx.beginPath();                          // shirt + shoulders
+    ctx.moveTo(-50, 50); ctx.quadraticCurveTo(-50, -30, -16, -40); ctx.lineTo(16, -40); ctx.quadraticCurveTo(50, -30, 50, 50); ctx.fill();
+    ctx.fillStyle = lgrad(-34, 0, 34, 0, '#3a3e2c', '#22251a'); rr(-34, -30, 68, 80, 8); ctx.fill();          // plate carrier
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1; for (let yy = -12; yy < 40; yy += 7) { ctx.beginPath(); ctx.moveTo(-26, yy); ctx.lineTo(26, yy); ctx.stroke(); }
+    ctx.fillStyle = '#b22234'; ctx.fillRect(-28, -24, 18, 11); ctx.fillStyle = '#fff'; for (let k = 0; k < 3; k++) ctx.fillRect(-28, -22 + k * 3.4, 18, 1.4); ctx.fillStyle = '#3c3b6e'; ctx.fillRect(-28, -24, 8, 6);   // flag patch
+    ctx.fillStyle = ORANGE; rr(10, -24, 18, 11, 2); ctx.fill(); ctx.fillStyle = '#1a1206'; ctx.font = `900 5px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('GBR', 19, -16.5);
+    ctx.fillStyle = '#1a1c16'; ctx.fillRect(30, -46, 3, 20); ctx.fillStyle = '#2a2d22'; rr(26, -30, 10, 16, 2); ctx.fill();   // radio on shoulder
+    ctx.fillStyle = '#b8876a'; ctx.fillRect(-7, -54, 14, 16);                                             // neck
+    const turn = Math.sin(t * 0.5) * 1.5;
+    ctx.fillStyle = lgrad(-16, 0, 16, 0, '#d8a888', '#9c6c50'); ctx.beginPath(); ctx.ellipse(turn, -72, 15.5, 19, 0, 0, Math.PI * 2); ctx.fill();   // face
+    ctx.fillStyle = '#4b3a2c'; ctx.beginPath(); ctx.moveTo(-15 + turn, -70); ctx.quadraticCurveTo(-15 + turn, -50, turn, -50); ctx.quadraticCurveTo(15 + turn, -50, 15 + turn, -70); ctx.quadraticCurveTo(8 + turn, -60, turn, -61); ctx.quadraticCurveTo(-8 + turn, -60, -15 + turn, -70); ctx.fill();   // beard
+    ctx.fillStyle = '#1a1410'; ctx.beginPath(); ctx.ellipse(-5.5 + turn, -75, 1.9, 2, 0, 0, Math.PI * 2); ctx.ellipse(5.5 + turn, -75, 1.9, 2, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#3a2c20'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-10 + turn, -80); ctx.lineTo(-3 + turn, -79); ctx.moveTo(3 + turn, -79); ctx.lineTo(10 + turn, -80); ctx.stroke();
+    ctx.fillStyle = '#2a1c14'; ctx.beginPath(); ctx.ellipse(turn, -61, 4, mouth * 0.55, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1f2328'; ctx.beginPath(); ctx.ellipse(turn, -84, 17, 11, 0, Math.PI, Math.PI * 2); ctx.fill();   // cap
+    ctx.fillRect(turn - 17, -85, 34, 4); ctx.beginPath(); ctx.ellipse(turn + 12, -82, 13, 3, 0.05, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = ORANGE; ctx.fillRect(turn - 4, -92, 8, 4);
+  }
+  ctx.restore();
+}
+function opsScreen(x, y, w, h, title) {
+  screenFrame(x, y, w, h); rr(x, y, w, h, 4); ctx.fillStyle = '#081620'; ctx.fill();
+  ctx.fillStyle = 'rgba(120,200,255,0.05)'; for (let yy = y; yy < y + h; yy += 3) ctx.fillRect(x, yy, w, 1);
+  if (title) txt(title, x + 10, y + 16, 9, '#7f97ac', 'left', 800);
+}
+const CALLS = [['Sarah M.', 'Siesta Key'], ['J. Ortiz', 'Venice'], ['Pat K.', 'Bradenton'], ['Lee family', 'Nokomis'], ['D. Brooks', 'Osprey']];
 function drawOps(t) {
-  const g = ctx.createLinearGradient(0, 0, 0, VH); g.addColorStop(0, '#0d1722'); g.addColorStop(1, '#04070b');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
-  ctx.fillStyle = 'rgba(255,255,255,0.025)'; for (let x = 0; x < VW; x += 80) ctx.fillRect(x, 0, 2, 310);
-  ctx.save(); ctx.globalCompositeOperation = 'lighter'; for (let x = 120; x < VW; x += 240) glow(x, 0, 120, 'rgba(120,170,220,A)', 0.12); ctx.restore();
-  const activated = opsIdx >= ACT_IDX;
+  const line = SCRIPT[opsIdx], sp = SPEAKERS[line.who], answered = opsIdx > 0, activated = opsIdx >= ACT_IDX;
+  const callLive = answered && opsIdx < ACT_IDX, sway = Math.sin(t * 0.18) * 4;
+  // room
+  ctx.fillStyle = lgrad(0, 0, 0, VH, '#0c1620', '#04070b'); ctx.fillRect(0, 0, VW, VH);
+  ctx.save(); ctx.translate(sway * 0.4, 0);
+  for (let x = -20; x < VW + 20; x += 64) { ctx.fillStyle = 'rgba(255,255,255,0.022)'; ctx.fillRect(x, 0, 30, 312); ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(x + 30, 0, 2, 312); }
+  ctx.globalCompositeOperation = 'lighter';
+  for (let x = 80; x < VW; x += 200) { ctx.fillStyle = 'rgba(170,200,230,0.5)'; ctx.fillRect(x - 40, 0, 80, 2); glow(x, 0, 90, 'rgba(120,170,220,A)', 0.13); }
+  ctx.globalCompositeOperation = 'source-over';
+  txt('GREY BULL RESCUE', 40, 30, 11, 'rgba(246,162,60,0.75)', 'left', 900);
+  txt('OPERATIONS CENTER · TAMPA, FL', 40, 44, 8, 'rgba(160,180,200,0.5)', 'left', 800);
+  ctx.restore();
+  ctx.save(); ctx.translate(sway, 0);
+  // main map
   const R = { x: 270, y: 34, w: 420, h: 236 };
   screenFrame(R.x, R.y, R.w, R.h);
   ctx.save(); rr(R.x, R.y, R.w, R.h, 4); ctx.clip();
@@ -912,76 +974,107 @@ function drawOps(t) {
   ctx.strokeStyle = 'rgba(229,83,75,0.55)'; ctx.setLineDash([4, 4]); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(sx - 20, sy + 120); ctx.quadraticCurveTo(sx - 10, sy + 40, sx, sy); ctx.quadraticCurveTo(sx + 20, sy - 60, sx + 50, sy - 140); ctx.stroke(); ctx.setLineDash([]);
   marker(tx, ty, '79,209,197', 'TAMPA HQ', t);
   marker(kx, ky, '246,162,60', 'SIESTA KEY', t);
-  const scan = (t * 0.25) % 1; ctx.fillStyle = 'rgba(120,200,255,0.07)'; ctx.fillRect(R.x, R.y + scan * R.h, R.w, 18);
-  ctx.fillStyle = 'rgba(120,20,20,0.85)'; ctx.fillRect(R.x, R.y + R.h - 18, R.w, 18);
+  if (answered) { ctx.strokeStyle = 'rgba(246,162,60,0.7)'; ctx.lineWidth = 1.2; const r = 10 + ((t * 20) % 22); ctx.beginPath(); ctx.arc(kx, ky, r, 0, Math.PI * 2); ctx.stroke(); }
+  ctx.fillStyle = 'rgba(120,200,255,0.06)'; ctx.fillRect(R.x, R.y + ((t * 0.25) % 1) * R.h, R.w, 18);
+  ctx.fillStyle = 'rgba(120,20,20,0.88)'; ctx.fillRect(R.x, R.y + R.h - 18, R.w, 18);
   const tick = 'HURRICANE HELENE  ·  STORM SURGE WARNING  ·  SARASOTA COUNTY  ·  911 CENTERS OVERWHELMED  ·  ROADS IMPASSABLE  ·  ';
   ctx.font = `800 10px ${FONT}`; const tw = ctx.measureText(tick).width, tx0 = R.x - ((t * 50) % tw);
   for (let x = tx0; x < R.x + R.w; x += tw) txt(tick, x, R.y + R.h - 5, 10, '#ffd7d2', 'left', 800);
   ctx.restore();
-  txt('HURRICANE HELENE · STORM SURGE · GULF COAST, FL', R.x + 12, R.y + 20, 12, '#ff8f87', 'left', 800);
-  txt('CALLS FOR HELP: 312+', R.x + 12, R.y + 38, 12, ORANGE, 'left', 800);
-  txt('● LIVE', R.x + R.w - 12, R.y + 20, 11, Math.sin(t * 4) > 0 ? RED : '#7a2a26', 'right', 900);
-  screenFrame(40, 60, 200, 160); rr(40, 60, 200, 160, 4); ctx.fillStyle = '#0a1823'; ctx.fill();
-  txt('INBOUND FAMILY CALLS', 52, 82, 11, '#9fb3c6', 'left', 700);
-  txt(`23:${String(42 + Math.floor(t / 60)).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')}`, 228, 130, 16, RED, 'right', 800);
-  const calls = Math.min(148, Math.floor(23 + t * 3));
-  txt(String(calls), 52, 130, 40, '#f3f6f9', 'left', 800);
-  for (let k = 0; k < 5; k++) { const w = 40 + ((k * 53 + Math.floor(t * 3) * 17) % 130); ctx.fillStyle = k === 0 ? RED : '#2c4a62'; rr(52, 148 + k * 13, w, 7, 3); ctx.fill(); }
-  screenFrame(720, 60, 200, 160); rr(720, 60, 200, 160, 4); ctx.fillStyle = '#0a1823'; ctx.fill();
-  txt('TEAM STATUS', 732, 82, 11, '#9fb3c6', 'left', 700);
+  panel(R.x + 8, R.y + 8, 300, 40, 6);
+  txt('HURRICANE HELENE · STORM SURGE · GULF COAST, FL', R.x + 18, R.y + 24, 10, '#ff9a90', 'left', 800);
+  txt(`LIVES AT RISK: 15 ON SIESTA KEY ROOFTOPS`, R.x + 18, R.y + 40, 10, ORANGE, 'left', 800);
+  txt('● LIVE', R.x + R.w - 12, R.y + 22, 10, Math.sin(t * 4) > 0 ? RED : '#7a2a26', 'right', 900);
+  // left: call queue + clock
+  opsScreen(40, 60, 200, 118, 'INBOUND FAMILY CALLS');
+  txt(`23:${String(42 + Math.floor(t / 60)).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')}`, 230, 76, 11, RED, 'right', 900);
+  CALLS.forEach(([n, where], i) => {
+    const y = 86 + i * 18, live = i === 0 && answered, ring = i === 0 && !answered;
+    if (live || (ring && Math.sin(t * 8) > 0)) { ctx.fillStyle = live ? 'rgba(92,214,138,0.14)' : 'rgba(229,83,75,0.16)'; ctx.fillRect(44, y - 2, 192, 16); }
+    txt(n, 50, y + 10, 10, '#e6edf3', 'left', 700); txt(where, 118, y + 10, 9, '#8a9cad', 'left', 600);
+    const st = live ? 'CONNECTED' : ring ? 'RINGING' : 'QUEUED', col = live ? '#5cd68a' : ring ? RED : '#6f8193';
+    ctx.font = `900 7px ${FONT}`; const sw = ctx.measureText(st).width + 10;
+    rr(232 - sw, y + 1, sw, 11, 5); ctx.fillStyle = col; ctx.globalAlpha = 0.22; ctx.fill(); ctx.globalAlpha = 1; txt(st, 232 - sw / 2, y + 9, 7, col, 'center', 900);
+  });
+  // left: surge chart
+  opsScreen(40, 188, 200, 82, 'STORM SURGE (FT)');
+  ctx.strokeStyle = 'rgba(120,170,210,0.15)'; ctx.lineWidth = 1; for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(50, 214 + k * 18); ctx.lineTo(230, 214 + k * 18); ctx.stroke(); }
+  const surge = x => 2 + 4.6 / (1 + Math.exp(-(x - 0.55) * 9));
+  const nowX = 0.62 + Math.min(0.05, t * 0.002);
+  ctx.strokeStyle = '#4fa3e0'; ctx.lineWidth = 2; ctx.beginPath(); for (let k = 0; k <= 40; k++) { const f = k / 40 * nowX; const X = 50 + f * 180, Y = 262 - surge(f) * 6.5; k ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); } ctx.stroke();
+  ctx.setLineDash([3, 3]); ctx.strokeStyle = RED; ctx.beginPath(); for (let k = 0; k <= 20; k++) { const f = nowX + k / 20 * (1 - nowX); const X = 50 + f * 180, Y = 262 - surge(f) * 6.5; k ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); } ctx.stroke(); ctx.setLineDash([]);
+  const nX = 50 + nowX * 180, nY = 262 - surge(nowX) * 6.5; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(nX, nY, 3, 0, Math.PI * 2); ctx.fill();
+  txt(`${surge(nowX).toFixed(1)} FT ▲`, 230, 210, 10, '#ff9a90', 'right', 900);
+  // right: team status
+  opsScreen(720, 60, 200, 118, 'TEAM STATUS');
   const rows = [['ADVANCE TEAM (12)', activated], ['HIGH-WATER TRUCKS', activated], ['HELO PILOT: YOU', opsIdx >= PILOT_IDX], ['STARLINK KITS', activated], ['MEDICS', activated]];
   rows.forEach(([n, on], k) => {
-    txt(n, 732, 108 + k * 22, 11, '#d5dee7', 'left', 600);
-    txt(on ? 'ACTIVE' : 'STANDBY', 908, 108 + k * 22, 11, on ? '#5cd68a' : '#7d8b98', 'right', 800);
+    const y = 86 + k * 18;
+    ctx.fillStyle = on ? '#5cd68a' : '#3c4a56'; ctx.beginPath(); ctx.arc(733, y + 6, 3, 0, Math.PI * 2); ctx.fill();
+    if (on) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(733, y + 6, 8, 'rgba(92,214,138,A)', 0.6); ctx.restore(); }
+    txt(n, 742, y + 10, 10, on ? '#e6edf3' : '#8a9cad', 'left', 700);
+    txt(on ? 'ACTIVE' : 'STANDBY', 910, y + 10, 8, on ? '#5cd68a' : '#6f8193', 'right', 900);
   });
-  const dg = ctx.createLinearGradient(0, 306, 0, 390); dg.addColorStop(0, '#22303d'); dg.addColorStop(0.1, '#15202a'); dg.addColorStop(1, '#0a1118');
-  ctx.fillStyle = dg; ctx.fillRect(0, 306, VW, 84);
-  ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(480, 312, 260, 'rgba(70,150,200,A)', 0.12); ctx.restore();
-  for (const [sxp, col] of [[140, 'rgba(79,209,197,A)'], [820, 'rgba(246,162,60,A)']]) { // ops staff at their desks
-    ctx.fillStyle = '#0b1218'; rr(sxp - 30, 270, 44, 30, 3); ctx.fill();
-    ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(sxp - 8, 285, 40, col, 0.12); ctx.restore();
-    ctx.fillStyle = '#121b24'; rr(sxp + 14, 268, 30, 40, 9); ctx.fill(); ctx.beginPath(); ctx.arc(sxp + 29, 256, 11, 0, Math.PI * 2); ctx.fill();
+  // right: live call waveform
+  opsScreen(720, 188, 200, 82, callLive ? 'LIVE CALL · SARAH M.' : answered ? 'CALL ENDED · FAMILY BRIEFED' : 'LINE 1 · RINGING');
+  const amp = line.who === 'CALLER' ? 1 : line.who === 'OLIVIA' && callLive ? 0.6 : 0.08;
+  ctx.strokeStyle = callLive ? '#5cd68a' : '#3c4a56'; ctx.lineWidth = 2; ctx.beginPath();
+  for (let k = 0; k <= 60; k++) { const X = 732 + k * 3, Y = 236 + Math.sin(k * 0.7 + t * 18) * Math.sin(k * 0.13 + t * 3) * 14 * amp; k ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); }
+  ctx.stroke();
+  if (callLive) txt(`00:${String(Math.min(59, Math.floor(opsCallT))).padStart(2, '0')}`, 910, 204, 10, '#5cd68a', 'right', 900);
+  ctx.restore();
+  // background staff
+  for (const [sxp, col] of [[140, 'rgba(79,209,197,A)'], [835, 'rgba(246,162,60,A)']]) {
+    ctx.fillStyle = '#0a1117'; rr(sxp - 30, 286, 46, 28, 3); ctx.fill();
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(sxp - 8, 298, 42, col, 0.13); ctx.restore();
+    ctx.fillStyle = '#101820'; rr(sxp + 16, 290, 30, 30, 9); ctx.fill(); ctx.beginPath(); ctx.arc(sxp + 31, 281, 10, 0, Math.PI * 2); ctx.fill();
   }
-  const ox1 = 360;
-  ctx.fillStyle = '#0d151c'; rr(ox1 - 62, 258, 58, 42, 3); ctx.fill(); ctx.fillStyle = 'rgba(79,209,197,0.32)'; ctx.fillRect(ox1 - 58, 262, 50, 34);
-  ctx.fillStyle = '#1a232c'; rr(ox1 - 8, 250, 52, 64, 12); ctx.fill();
-  const og = ctx.createLinearGradient(ox1, 262, ox1 + 40, 262); og.addColorStop(0, '#3a5568'); og.addColorStop(1, '#22313d');
-  ctx.fillStyle = og; rr(ox1 - 2, 262, 40, 52, 10); ctx.fill();
-  ctx.fillStyle = '#b27b57'; ctx.beginPath(); ctx.arc(ox1 + 18, 244, 15, 0, Math.PI * 2); ctx.fill();
-  ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(ox1 + 6, 246, 20, 'rgba(79,209,197,A)', 0.25); ctx.restore();
-  ctx.fillStyle = '#2a1d16'; ctx.beginPath(); ctx.arc(ox1 + 20, 240, 16, Math.PI * 0.9, Math.PI * 2.1); ctx.fill(); ctx.fillRect(ox1 + 28, 238, 9, 30);
-  ctx.strokeStyle = TEAL; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(ox1 + 18, 244, 17, Math.PI * 1.1, Math.PI * 1.95); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(ox1 + 3, 248); ctx.lineTo(ox1 + 8, 256); ctx.stroke();
-  txt('OLIVIA', ox1 + 18, 300, 11, TEAL, 'center', 800);
+  // the people
+  ctx.fillStyle = '#0d151c'; rr(286, 262, 64, 46, 4); ctx.fill(); ctx.fillStyle = '#0b1f24'; ctx.fillRect(290, 266, 56, 38);
+  ctx.fillStyle = callLive ? 'rgba(92,214,138,0.7)' : 'rgba(79,209,197,0.6)'; ctx.fillRect(293, 269, 24, 3);
+  for (let k = 0; k < 5; k++) { ctx.fillStyle = 'rgba(160,220,230,0.35)'; ctx.fillRect(293, 276 + k * 5, 18 + ((k * 13 + Math.floor(t * 2)) % 30), 2); }
+  ctx.strokeStyle = callLive ? '#5cd68a' : TEAL; ctx.lineWidth = 1; ctx.beginPath(); for (let k = 0; k <= 12; k++) { const X = 322 + k * 2, Y = 290 + Math.sin(k + t * 15) * (callLive ? 5 : 1); k ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); } ctx.stroke();
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(330, 284, 60, 'rgba(79,209,197,A)', 0.1); ctx.restore();
+  bust('olivia', 392, 322, t, line.who === 'OLIVIA');
   if (activated) {
     const k = opsIdx === ACT_IDX ? clamp(opsT / 1.2, 0, 1) : 1;
-    const bx = 1000 - (1000 - 640) * (1 - Math.pow(1 - k, 3));
-    const bg = ctx.createLinearGradient(bx - 22, 0, bx + 22, 0); bg.addColorStop(0, '#4a4f3a'); bg.addColorStop(1, '#2b2e22');
-    ctx.fillStyle = bg; rr(bx - 22, 232, 44, 76, 10); ctx.fill();
-    ctx.fillStyle = '#23261c'; rr(bx - 18, 250, 36, 24, 4); ctx.fill();
-    ctx.fillStyle = '#b22234'; ctx.fillRect(bx - 16, 238, 12, 8); ctx.fillStyle = '#fff'; ctx.fillRect(bx - 16, 240, 12, 1); ctx.fillRect(bx - 16, 243, 12, 1); ctx.fillStyle = '#3c3b6e'; ctx.fillRect(bx - 16, 238, 5, 4);
-    ctx.fillStyle = ORANGE; ctx.fillRect(bx + 6, 239, 10, 6);
-    ctx.fillStyle = '#c99872'; ctx.beginPath(); ctx.arc(bx, 214, 16, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#5a4634'; ctx.beginPath(); ctx.arc(bx, 218, 14, 0.15 * Math.PI, 0.85 * Math.PI); ctx.fill();
-    ctx.fillStyle = '#23262b'; ctx.beginPath(); ctx.arc(bx, 210, 17, Math.PI, Math.PI * 2); ctx.fill(); ctx.fillRect(bx - 4, 205, 26, 6);
-    txt('BRYAN', bx, 300, 11, ORANGE, 'center', 800);
+    bust('bryan', 1010 - (1010 - 640) * (1 - Math.pow(1 - k, 3)), 322, t, line.who === 'BRYAN');
   }
-  const line = SCRIPT[opsIdx], sp = SPEAKERS[line.who];
+  // desk with depth
+  ctx.fillStyle = lgrad(0, 306, 0, 330, '#2a3946', '#18232d'); ctx.beginPath(); ctx.moveTo(0, 318); ctx.lineTo(VW, 318); ctx.lineTo(VW, 332); ctx.lineTo(0, 332); ctx.fill();
+  ctx.fillStyle = 'rgba(200,225,245,0.18)'; ctx.fillRect(0, 317, VW, 1.5);
+  ctx.fillStyle = lgrad(0, 332, 0, 392, '#111a22', '#070b10'); ctx.fillRect(0, 332, VW, 60);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.5; glow(480, 330, 300, 'rgba(70,150,200,A)', 0.12); ctx.restore();
+  ctx.fillStyle = '#1b252e'; rr(340, 320, 70, 7, 2); ctx.fill();                                              // keyboard
+  ctx.fillStyle = 'rgba(150,200,230,0.25)'; for (let k = 0; k < 9; k++) ctx.fillRect(344 + k * 7, 322, 5, 1.5);
+  ctx.fillStyle = '#e8e2d4'; rr(436, 304, 14, 16, 2); ctx.fill(); ctx.fillStyle = ORANGE; ctx.fillRect(436, 309, 14, 4);   // mug
+  ctx.strokeStyle = 'rgba(220,230,240,0.25)'; ctx.lineWidth = 1.5; for (let k = 0; k < 2; k++) { ctx.beginPath(); const o = ((t * 12 + k * 9) % 18); ctx.moveTo(441 + k * 5, 302 - o); ctx.quadraticCurveTo(446 + k * 5, 296 - o, 441 + k * 5, 290 - o); ctx.stroke(); }
+  for (const [nx, label, col] of [[392, 'OLIVIA · OPERATIONS', TEAL], [640, 'BRYAN · TEAM LEAD', ORANGE]]) {
+    if (nx === 640 && !activated) continue;
+    ctx.font = `900 9px ${FONT}`; const w = ctx.measureText(label).width + 18;
+    rr(nx - w / 2, 344, w, 18, 4); ctx.fillStyle = 'rgba(10,16,22,0.9)'; ctx.fill(); ctx.strokeStyle = col; ctx.globalAlpha = 0.6; ctx.lineWidth = 1; ctx.stroke(); ctx.globalAlpha = 1;
+    txt(label, nx, 356, 9, col, 'center', 900);
+  }
   if (line.answer) { drawCallCard(t); return; }
   if (line.choice && opsChars() >= line.text.length) {
-    button(VW / 2 - 200, 326, 190, 50, line.choice[0], () => advanceOps(true), { size: 18 });
-    button(VW / 2 + 10, 326, 190, 50, line.choice[1], () => advanceOps(true), { size: 18 });
+    button(VW / 2 - 200, 330, 190, 50, line.choice[0], () => advanceOps(true), { size: 18 });
+    button(VW / 2 + 10, 330, 190, 50, line.choice[1], () => advanceOps(true), { size: 18 });
   }
-  panel(30, 392, 900, 128, 12, sp.col);
-  ctx.save(); ctx.shadowColor = sp.col; ctx.shadowBlur = 16; ctx.fillStyle = sp.col; ctx.beginPath(); ctx.arc(84, 456, 30, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-  ctx.fillStyle = '#0b1219'; ctx.beginPath(); ctx.arc(84, 456, 27, 0, Math.PI * 2); ctx.fill();
-  txt(sp.init, 84, 467, 28, sp.col, 'center', 900);
-  txt(sp.label, 132, 420, 13, sp.col, 'left', 800);
-  drawWrapped(line.text, 132, 450, 770, 19, '#eef2f6', 26, opsChars());
-  if (!line.choice && opsChars() >= line.text.length && Math.sin(t * 6) > -0.3) txt(isTouch ? '▶  tap' : '▶  click or SPACE', 910, 508, 12, '#7d8b98', 'right', 600);
-  if (line.who === 'SYS' && Math.sin(t * 10) > 0) { ctx.fillStyle = 'rgba(229,83,75,0.1)'; ctx.fillRect(0, 0, VW, VH); }
+  // dialogue
+  panel(30, 392, 900, 128, 14, sp.col);
+  ctx.save(); ctx.beginPath(); ctx.arc(84, 456, 34, 0, Math.PI * 2); ctx.fillStyle = '#0b1219'; ctx.fill(); ctx.clip();
+  if (line.who === 'OLIVIA') bust('olivia', 84, 512, t, true);
+  else if (line.who === 'BRYAN') bust('bryan', 84, 530, t, true);
+  else { ctx.fillStyle = '#26323e'; ctx.fillRect(50, 422, 68, 68); txt('☎', 84, 470, 30, '#a9b6c3', 'center', 900); }
+  ctx.restore();
+  ctx.strokeStyle = sp.col; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(84, 456, 34, 0, Math.PI * 2); ctx.stroke();
+  txt(sp.label, 136, 420, 12, sp.col, 'left', 900);
+  if (line.who === 'CALLER') txt('ON THE LINE', 136 + (ctx.measureText(sp.label).width) + 12, 420, 9, '#5cd68a', 'left', 900);
+  const typed = opsChars(), done = typed >= line.text.length;
+  drawWrapped(line.text, 136, 450, 760, 19, '#eef2f6', 26, typed);
+  for (let i = 1; i < SCRIPT.length; i++) { ctx.fillStyle = i < opsIdx ? sp.col : i === opsIdx ? '#fff' : 'rgba(255,255,255,0.15)'; ctx.beginPath(); ctx.arc(136 + (i - 1) * 11, 505, i === opsIdx ? 3 : 2.2, 0, Math.PI * 2); ctx.fill(); }
+  if (!line.choice && done && Math.sin(t * 6) > -0.3) txt(isTouch ? 'tap  ▶' : 'click or SPACE  ▶', 910, 508, 12, '#7d8b98', 'right', 700);
 }
-
 // ------------------------------------------------------------- loadout ----
 const KIT = [
   { k: 'fuel', name: 'EXTRA FUEL', desc: 'A 50% bigger tank, so you can stay on station longer before heading back to base.' },
@@ -1506,7 +1599,7 @@ function update(dt) {
   sceneT += dt;
   if (scene === 'fly') updFly(dt);
   else windNow = 55 + Math.sin(sceneT * 0.5) * 25;
-  if (scene === 'ops') { opsT += dt; if (SCRIPT[opsIdx] && SCRIPT[opsIdx].answer) { ringT -= dt; if (ringT <= 0) { ringT = 2.6; audio.ring(); } } }
+  if (scene === 'ops') { opsT += dt; if (opsIdx > 0) opsCallT += dt; if (SCRIPT[opsIdx] && SCRIPT[opsIdx].answer) { ringT -= dt; if (ringT <= 0) { ringT = 2.6; audio.ring(); } } }
   if (scene === 'intro') updIntro();
   if (scene === 'debrief' && !debriefSaid && sceneT > 1) { debriefSaid = true; audio.say('BRYAN', '', 'b_spectator'); }
   if (scene === 'deploy' && sceneT > 6.4) go('fly');
