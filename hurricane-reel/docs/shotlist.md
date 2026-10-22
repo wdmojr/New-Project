@@ -19,8 +19,8 @@ clip recorded frame by frame (`assets/clips/*`). Supers in Barlow Condensed Extr
 | 9 | 36-38 | 21.6-22.8 | **15 souls** | `fly_cruise` + super **"15 SOULS. 7 MINUTES."** | super springs in word by word on b36, b36.5, b37 | cut on b38 | pops b36/36.5/37 |
 | 10 | 38-41 | 22.8-24.6 | **The surge** | `clips/surge` (water rising, name tags turning red) | clip time-lapse; camera shake on each surge step | cut on b41 | VO o_danger @b38: "Water's almost over that roof!" · rumble b38 |
 | 11 | 41-44 | 24.6-26.4 | **JACKPOT** | `clips/hoist`: basket loads Tom → JACKPOT banner | clip plays; push in on the banner when it lands (~b42) | push through the banner to the debrief | VO jackpot @b41: "Jackpot! Jackpot! Jackpot!" · stings b41/41.5/42 |
-| 12 | 44-46 | 26.4-27.6 | **The ask** | `debrief`: MISSION COMPLETE, 3 stars, "DON'T BE A SPECTATOR." | push in on the motto and the FUND THE NEXT RESCUE button | slide up into the end card | VO bq4 @b44.5: "Don't be a spectator." |
-| 13 | 46-50 | 27.6-30.0 | **End card** (holds 2.4 s) | type only: **OPERATION HURRICANE** · "A Grey Bull Rescue mission concept" · **FUND THE NEXT RESCUE** · greybullrescue.org · small: "Concept prototype · not an official Grey Bull Rescue product" | title settles, everything else still | hold to the end | final boom + bell b46, ring out |
+| 12 | 44-46.4 | 26.4-27.8 | **The ask** | `debrief`: MISSION COMPLETE, 3 stars, "DON'T BE A SPECTATOR." | push in on the motto and the FUND THE NEXT RESCUE button | slide up into the end card | VO bq4 @b45.5: "Don't be a spectator." |
+| 13 | 46.4-50 | 27.8-30.0 | **End card** (settled from b47.6, holds 1.4 s+) | type only: **DON'T BE A SPECTATOR.** · **OPERATION HURRICANE** · "A Grey Bull Rescue mission concept" · **FUND THE NEXT RESCUE** · greybullrescue.org · small: "Concept prototype · not an official Grey Bull Rescue product" | title settles, everything else still | hold to the end | final boom + bell b46, ring out |
 
 Longest gap without a new event: beats 12-16 (2.4 s, Sarah's line; the pan and her voice carry it).
 Only full-frame flash: b32 (the drop).
