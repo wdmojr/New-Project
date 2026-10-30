@@ -4,21 +4,22 @@
 # Cut the ElevenLabs take into phrases at its silences and land each on the beat grid.
 import json, numpy as np, soundfile as sf
 B = json.load(open('beats.json')); P, OFF = B['period'], B['offset']
-x, sr = sf.read('audio/vo/take1.wav')
+x, sr = sf.read('audio/vo/take2.wav')
 # (take start, take end, beat it lands on, text)
 PH = [
-  (0.00, 1.60, 0.5, "Luxury isn't loud."),
-  (2.04, 3.41, 4.0, "It lives in the details."),
-  (3.89, 7.34, 7.0, "For Van Selow Design Build, we built a site to match."),
-  (7.80, 10.25, 14.0, "A signature logo that shimmers to life."),
-  (10.60, 13.74, 19.0, "A menu that opens their whole world in one hover."),
-  (14.12, 16.95, 25.5, "A custom quote form that qualifies every lead."),
-  (17.34, 20.27, 31.5, "And an interactive map of every community they serve."),
-  (20.69, 22.37, 38.0, "All of it, built for speed."),
-  (22.78, 24.59, 42.0, "Your clients expect luxury."),
-  (25.04, 27.40, 46.5, "WD Morgan Solutions delivers it."),
+  (0.00, 2.11, 1.0, "Your work is world class."),
+  (2.49, 4.08, 6.0, "The images speak for themselves."),
+  (4.60, 6.56, 10.0, "Your website should be world class too."),
+  (7.09, 10.68, 15.0, "For Van Selow Design Build, every detail was considered."),
+  (11.16, 14.85, 23.0, "A signature logo that glides into a sticky header as you scroll."),
+  (15.33, 18.45, 31.0, "A menu that opens their whole world in one hover."),
+  (18.89, 21.68, 38.0, "A custom quote form that qualifies every lead."),
+  (22.13, 24.97, 45.0, "An interactive map of every community they serve."),
+  (25.42, 27.07, 51.5, "All of it, built for speed."),
+  (27.57, 30.89, 56.0, "Work with someone who takes the same care and precision that you do."),
+  (31.40, 33.30, 64.0, "WD Morgan Solutions."),
 ]
-out = np.zeros(int(30 * sr)); pad = int(0.03 * sr); fade = int(0.02 * sr)
+out = np.zeros(int(38 * sr)); pad = int(0.03 * sr); fade = int(0.02 * sr)
 prev_end, rows = 0, []
 for a, b, beat, txt in PH:
     seg = x[max(0, int(a * sr) - pad):int(b * sr) + pad].copy()

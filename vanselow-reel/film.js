@@ -1,450 +1,399 @@
-// Van Selow Design Build: site sizzle. Pure function of time: window.seek(t) paints frame t.
-// Timing is in beats (u) on the measured grid (112 bpm); docs/shotlist.md is the plan.
-// Every screen is a real capture of vanselowdesign.com (assets/shots), every photo is from the site.
+// Van Selow Design Build: site film. Pure function of time: window.seek(t) paints frame t.
+// Timing is in beats (u, 120 bpm) on beats.json; docs/shotlist.md is the plan.
+// All screen footage is live capture of vanselowdesign.com (capture/record.cjs -> assets/clips),
+// played frame-exactly inside devices drawn in code. Photos are the client's own, from the site.
 import * as M from './lib/motion.js';
 
-const { W, H, FORMAT, E, prog, lerp, clamp, springU, SPRING, wobble, font, layout, glyph, text, fill, rrect, mix } = M;
+const { W, H, FORMAT, E, prog, lerp, clamp, springU, SPRING, font, layout, glyph, fill } = M;
 
-// Brand tokens (assets/brand.json): charcoal + warm paper, one accent = Van Selow crimson.
 const C = {
-  coal: '#1d1c1b', coal2: '#2b2a29', paper: '#f7f5f2', ink: '#2b2a29', mute: '#9a948c',
-  crimson: '#620000', red: '#e2232f', white: '#ffffff', wdm: '#00c375',
+  coal: '#121111', mute: '#a39d95', red: '#e2232f', white: '#ffffff', wdm: '#00c375',
 };
 const DISPLAY = 'Display', UI = 'UI';
 const P = FORMAT.portrait;
-
-const HITS = [
-  [0, 'hook: Luxury', 'sub', { len: 1.2 }],
-  [1, "hook: isn't", 'tick'],
-  [2, 'hook: loud.', 'thud'],
-  [3.75, 'hook exits', 'whoosh', { len: 0.35 }],
-  [4, 'detail: headline', 'click'],
-  [5, 'detail: badges', 'click'],
-  [6, 'detail: plaque', 'click'],
-  [7.6, 'pull back to hero', 'whoosh', { len: 0.9, from: 2400, to: 500 }],
-  [8.5, 'client super', 'tick'],
-  [14, 'push into logo', 'riser', { len: 1.0 }],
-  [14, 'logo match cut', 'sub', { len: 1.0 }],
-  [15, 'logo super', 'bell', { pitch: 'F6' }],
-  [18.75, 'whip to menu', 'whoosh', { len: 0.4 }],
-  [19, 'menu lands', 'thud'],
-  [20, 'menu super', 'tick'],
-  [22.5, 'whip to service areas', 'whoosh', { len: 0.35, from: 2400, to: 700 }],
-  [25.5, 'form lands', 'thud'],
-  [26.5, 'zip typed', 'type', { n: 5, len: 1.1 }],
-  [29, 'zip verified', 'pop', { pitch: 'C6' }],
-  [31.5, 'map lands', 'thud'],
-  [33, 'pin St. Petersburg', 'blip', { pitch: 'F6' }],
-  [35, 'pin Seminole', 'blip', { pitch: 'G6' }],
-  [36.5, 'pin Treasure Island', 'blip', { pitch: 'C7' }],
-  [38, 'speed: desktop', 'thud'],
-  [38.5, 'speed: phone', 'click'],
-  [38.75, 'load bar full', 'blip', { pitch: 'C7' }],
-  [39, 'Built for speed', 'tick'],
-  [42, 'luxury: pool', 'sub', { len: 0.8 }],
-  [43, 'luxury: kitchen', 'click'],
-  [44, 'luxury: cellar', 'click'],
-  [45, 'luxury: beachfront', 'click'],
-  [46.5, 'end panel wipe', 'whoosh', { len: 0.45 }],
-  [46.75, 'WD Morgan logo', 'impact'],
-  [49.5, 'url', 'bell', { pitch: 'F6' }],
-];
-
-// ---------------------------------------------------------------- helpers
-const PER = () => M.GRID.period;
+const S = FORMAT.safe;
+const deg = Math.PI / 180;
 const logLerp = (a, b, t) => a * (b / a) ** t;
 
-// Draw an image so that the source window V (image px: x, y, w, h) fills the box.
-function view(ctx, img, V, x, y, w, h, radius = 0) {
-  ctx.save();
-  if (radius) { rrect(ctx, x, y, w, h, radius); ctx.clip(); } else { ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); }
-  const s = w / V.w;
-  ctx.drawImage(img, x - V.x * s, y - V.y * s, img.width * s, img.height * s);
-  ctx.restore();
-}
-// A window of aspect a (w/h) on the image, centred on fractions (fx, fy), width = fw * img.width, clamped inside.
-function win(img, fx, fy, fw, a) {
-  const w = Math.min(img.width, fw * img.width), h = Math.min(img.height, w / a);
-  const w2 = h * a;
-  return { x: clamp(fx * img.width - w2 / 2, 0, img.width - w2), y: clamp(fy * img.height - h / 2, 0, img.height - h), w: w2, h };
-}
-const lerpV = (A, B, t) => {
-  // centre moves linearly, size moves in log space: a constant-rate dolly
-  const w = logLerp(A.w, B.w, t), h = logLerp(A.h, B.h, t);
-  const cx = lerp(A.x + A.w / 2, B.x + B.w / 2, t), cy = lerp(A.y + A.h / 2, B.y + B.h / 2, t);
-  return { x: cx - w / 2, y: cy - h / 2, w, h };
+const HITS = [
+  [0, 'open: pool', 'sub', { len: 1.4 }],
+  [6, 'cut: kitchen', 'click'],
+  [7.5, 'cut: cellar', 'click'],
+  [9, 'cut: beachfront', 'click'],
+  [10, 'pull back into laptop', 'whoosh', { len: 1.2, from: 2200, to: 400 }],
+  [15, 'every detail', 'tick'],
+  [19, 'macro: logo', 'click'],
+  [23, 'scroll: sticky header', 'whoosh', { len: 0.6, from: 600, to: 1800 }],
+  [31, 'menu', 'thud'],
+  [38, 'form', 'thud'],
+  [45, 'map', 'thud'],
+  [51.5, 'speed: devices', 'impact'],
+  [56, 'craft: cellar', 'sub', { len: 1.2 }],
+  [57, 'The same care.', 'tick'],
+  [59.5, 'The same precision.', 'tick'],
+  [63.5, 'end panel', 'whoosh', { len: 0.5 }],
+  [64, 'WD Morgan logo', 'impact'],
+  [67, 'url', 'bell', { pitch: 'F6' }],
+];
+
+// ---------------------------------------------------------------- live clips (frame sequences)
+const CLIP = {
+  scroll: { n: 180, w: 2160, h: 1350, k: 1.5 },
+  menu: { n: 150, w: 2160, h: 1350, k: 1.5 },
+  form: { n: 225, w: 2160, h: 1350, k: 1.5 },
+  map: { n: 210, w: 2160, h: 1350, k: 1.5 },
+  mobile: { n: 180, w: 975, h: 2110, k: 2.5 },
 };
-function shadowCard(ctx, x, y, w, h, r, k = 1) {
-  ctx.save();
-  ctx.shadowColor = `rgba(0,0,0,${0.45 * k})`; ctx.shadowBlur = 60; ctx.shadowOffsetY = 24;
-  rrect(ctx, x, y, w, h, r); ctx.fillStyle = '#000'; ctx.fill();
+const META = {};
+const cache = new Map();
+let DRY = null;   // during prepare(): collects the frames a draw would need
+const key = (name, i) => `${name}/${String(i).padStart(4, '0')}`;
+function frame(name, ct) {
+  const c = CLIP[name];
+  const i = clamp(Math.round(ct * 30), 0, c.n - 1);
+  const k = key(name, i);
+  if (DRY) { DRY.add(k); return null; }
+  return cache.get(k) || null;
+}
+async function load(k) {
+  if (cache.has(k)) { const v = cache.get(k); cache.delete(k); cache.set(k, v); return; }
+  const im = new Image(); im.src = `assets/clips/${k}.jpg`;
+  try { await im.decode(); } catch { console.error('missing frame', k); return; }
+  cache.set(k, im);
+  while (cache.size > 160) cache.delete(cache.keys().next().value);
+}
+const cursorAt = (name, ct) => {
+  const m = META[name]; if (!m) return null;
+  const i = clamp(Math.round(ct * 30), 0, m.length - 1);
+  return m[i] && m[i].x != null ? m[i] : null;
+};
+
+// Screen texture: the clip frame plus the recorded cursor, so the cursor follows the perspective.
+const TEX = document.createElement('canvas');
+const tctx = TEX.getContext('2d');
+function screenTex(name, ct, withCursor = true) {
+  const im = frame(name, ct);
+  if (!im) return null;
+  const c = CLIP[name];
+  if (TEX.width !== c.w || TEX.height !== c.h) { TEX.width = c.w; TEX.height = c.h; }
+  tctx.drawImage(im, 0, 0);
+  const cur = withCursor && cursorAt(name, ct);
+  if (cur) drawCursor(tctx, cur.x * c.k, cur.y * c.k, c.k * 1.15, cur.down);
+  return TEX;
+}
+function drawCursor(ctx, x, y, s, down) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s * (down ? 0.88 : 1), s * (down ? 0.88 : 1));
+  ctx.beginPath();
+  ctx.moveTo(0, 0); ctx.lineTo(0, 17); ctx.lineTo(4, 13.2); ctx.lineTo(7, 19.6); ctx.lineTo(9.6, 18.5);
+  ctx.lineTo(6.8, 12.3); ctx.lineTo(12, 12.3); ctx.closePath();
+  ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 4; ctx.shadowOffsetY = 1.5;
+  ctx.fillStyle = '#111'; ctx.fill(); ctx.shadowColor = 'transparent';
+  ctx.lineWidth = 1.4; ctx.strokeStyle = '#fff'; ctx.stroke();
   ctx.restore();
 }
 
-// Masked line of type that rises out of its own baseline (directional entrance, masked exit).
-function riseLine(ctx, u, u0, str, x, y, f, color, { track = 0, align = 'left', out = 1e9, stagger = 0.025 } = {}) {
+// ---------------------------------------------------------------- 3-D devices (canvas 2-D, true perspective)
+// Object rotated by ry (yaw) then rx (pitch, positive looks down on it), perspective distance f.
+function makeProj(cx, cy, ry, rx, f) {
+  const cY = Math.cos(ry), sY = Math.sin(ry), cX = Math.cos(rx), sX = Math.sin(rx);
+  return (x, y, z) => {
+    const X = x * cY + z * sY, Z1 = -x * sY + z * cY;
+    const Y = y * cX - Z1 * sX, Z = y * sX + Z1 * cX;
+    const s = f / (f - Z);
+    return [cx + X * s, cy + Y * s, Z];
+  };
+}
+// Map an image rect onto a plane quad corner(u, v) with thin affine strips.
+function texQuad(ctx, img, src, corner, N = 48) {
+  const [sx, sy, sw, sh] = src;
+  for (let i = 0; i < N; i++) {
+    const u0 = i / N, u1 = (i + 1) / N;
+    const a = corner(u0, 0), b = corner(u1, 0), c = corner(u0, 1), d = corner(u1, 1);
+    const cx = (c[0] + d[0] - (b[0] - a[0])) / 2, cy = (c[1] + d[1] - (b[1] - a[1])) / 2;
+    ctx.save();
+    ctx.transform(b[0] - a[0], b[1] - a[1], cx - a[0], cy - a[1], a[0], a[1]);
+    const ov = 0.8 / Math.max(1, Math.hypot(b[0] - a[0], b[1] - a[1]));
+    ctx.drawImage(img, sx + sw * u0, sy, sw / N, sh, 0, 0, 1 + ov, 1);
+    ctx.restore();
+  }
+}
+function pathPts(ctx, pts) { ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath(); }
+function roundRectPts(w, h, r, seg = 6) {
+  const pts = [];
+  const arc = (cx, cy, a0) => { for (let i = 0; i <= seg; i++) { const a = a0 + (i / seg) * Math.PI / 2; pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]); } };
+  arc(w - r, r, -Math.PI / 2); arc(w - r, h - r, 0); arc(r, h - r, Math.PI / 2); arc(r, r, Math.PI);
+  return pts;
+}
+
+// Laptop. (cx, cy) = hinge centre; w = display width (16:10 panel).
+function laptop(ctx, tex, { cx, cy, w, ry = 0, rx = 0.12, src }) {
+  const pr = makeProj(cx, cy, ry, rx, w * 2.6);
+  const bw = w * 1.045, bh = bw / 1.55;
+  const dw = w, dh = w / 1.6;
+  const lx = -bw / 2, ly = -bh;
+  // base slab lies flat toward the viewer
+  const D = bw * 0.66, T = bw * 0.018, BW = bw * 1.1;
+  const quad = (pts) => pts.map(([x, y, z]) => pr(x, y, z));
+  const base = quad([[-BW / 2, 0, 0], [BW / 2, 0, 0], [BW / 2, 0, D], [-BW / 2, 0, D]]);
+  const lip = quad([[-BW / 2, 0, D], [BW / 2, 0, D], [BW / 2, T, D], [-BW / 2, T, D]]);
+  // floor shadow
+  ctx.save();
+  const sc = pr(0, T, D * 0.5);
+  ctx.translate(sc[0], sc[1] + w * 0.03); ctx.scale(1, 0.14);
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, w * 0.75);
+  g.addColorStop(0, 'rgba(0,0,0,0.65)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, w * 0.75, 0, M.TAU); ctx.fill();
+  ctx.restore();
+  if (rx > 0.02) {
+    pathPts(ctx, base);
+    const bg = ctx.createLinearGradient(0, base[0][1], 0, base[2][1]);
+    bg.addColorStop(0, '#55575b'); bg.addColorStop(1, '#a2a4a8');
+    ctx.fillStyle = bg; ctx.fill();
+    pathPts(ctx, quad([[-bw * 0.43, 0, D * 0.08], [bw * 0.43, 0, D * 0.08], [bw * 0.43, 0, D * 0.46], [-bw * 0.43, 0, D * 0.46]]));
+    ctx.fillStyle = 'rgba(10,10,12,0.55)'; ctx.fill();
+    pathPts(ctx, quad([[-bw * 0.2, 0, D * 0.55], [bw * 0.2, 0, D * 0.55], [bw * 0.2, 0, D * 0.93], [-bw * 0.2, 0, D * 0.93]]));
+    ctx.fillStyle = 'rgba(255,255,255,0.10)'; ctx.fill();
+  }
+  pathPts(ctx, lip); ctx.fillStyle = '#3a3b3e'; ctx.fill();
+  // lid: tilted back a little about the hinge
+  const lean = 0.06, cl = Math.cos(lean), sl = Math.sin(lean);
+  const lid = (x, y) => pr(x, y * cl, y * sl);
+  pathPts(ctx, roundRectPts(bw, bh, bw * 0.03).map(([x, y]) => lid(lx + x, ly + y)));
+  ctx.fillStyle = '#0b0b0c'; ctx.fill();
+  ctx.lineWidth = Math.max(1, w * 0.0025); ctx.strokeStyle = '#4a4b4f'; ctx.stroke();
+  const ox = -dw / 2, oy = -bh + (bh - dh) * 0.42;
+  if (tex) {
+    ctx.save();
+    pathPts(ctx, roundRectPts(dw, dh, dw * 0.008).map(([x, y]) => lid(ox + x, oy + y))); ctx.clip();
+    texQuad(ctx, tex, src || [0, 0, tex.width, tex.height], (u, v) => lid(ox + u * dw, oy + v * dh));
+    const a = lid(ox, oy), b = lid(ox + dw, oy + dh);
+    const sh = ctx.createLinearGradient(a[0], a[1], b[0], b[1]);
+    sh.addColorStop(0, 'rgba(255,255,255,0.08)'); sh.addColorStop(0.4, 'rgba(255,255,255,0)');
+    ctx.fillStyle = sh; ctx.fillRect(Math.min(a[0], b[0]) - 60, Math.min(a[1], b[1]) - 60, Math.abs(b[0] - a[0]) + 120, Math.abs(b[1] - a[1]) + 120);
+    ctx.restore();
+  }
+  // camera notch
+  pathPts(ctx, [[-bw * 0.045, -bh], [bw * 0.045, -bh], [bw * 0.045, oy + w * 0.004], [-bw * 0.045, oy + w * 0.004]].map(([x, y]) => lid(x, y)));
+  ctx.fillStyle = '#0b0b0c'; ctx.fill();
+}
+
+// Phone. (x, y) top-left, w width.
+function phone(ctx, tex, { x, y, w, ry = 0, src }) {
+  const h = w * 2.06, r = w * 0.16, bz = w * 0.035;
+  const pr = makeProj(x + w / 2, y + h / 2, ry, 0, w * 6);
+  const p2 = (px, py) => pr(px - w / 2, py - h / 2, 0);
+  const body = roundRectPts(w, h, r).map(([a, b]) => p2(a, b));
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = w * 0.2; ctx.shadowOffsetY = w * 0.06;
+  pathPts(ctx, body); ctx.fillStyle = '#1a1a1c'; ctx.fill();
+  ctx.restore();
+  pathPts(ctx, body); ctx.lineWidth = Math.max(1.5, w * 0.012); ctx.strokeStyle = '#6d6e72'; ctx.stroke();
+  const sw = w - 2 * bz, shh = h - 2 * bz;
+  if (tex) {
+    ctx.save();
+    pathPts(ctx, roundRectPts(sw, shh, r - bz).map(([a, b]) => p2(bz + a, bz + b))); ctx.clip();
+    texQuad(ctx, tex, src || [0, 0, tex.width, Math.min(tex.height, tex.width * shh / sw)], (u, v) => p2(bz + u * sw, bz + v * shh), 24);
+    ctx.restore();
+  }
+  pathPts(ctx, roundRectPts(w * 0.3, w * 0.085, w * 0.0425).map(([a, b]) => p2(w * 0.35 + a, bz + w * 0.03 + b)));
+  ctx.fillStyle = '#000'; ctx.fill();
+}
+
+// ---------------------------------------------------------------- type
+function riseLine(ctx, u, u0, str, x, y, f, color, { track = 0, align = 'left', out = 1e9, stagger = 0.02 } = {}) {
   const L = layout(ctx, str, f, track);
   const x0 = align === 'left' ? x : align === 'right' ? x - L.width : x - L.width / 2;
   const hgt = L.asc + L.desc + 8;
-  ctx.save(); ctx.beginPath(); ctx.rect(x0 - 40, y - L.asc - 6, L.width + 80, hgt + 4); ctx.clip();
+  ctx.save(); ctx.beginPath(); ctx.rect(x0 - 40, y - L.asc - 8, L.width + 80, hgt + 6); ctx.clip();
   L.glyphs.forEach((g, j) => {
+    if (u < u0 + j * stagger) return;
     const k = springU(u, u0 + j * stagger, SPRING.gentle);
-    const ex = E.inCubic(prog(u, out + j * 0.01, out + 0.35 + j * 0.01));
-    if (k <= 0.001) return;
-    const dy = (1 - k) * hgt * 1.05 - ex * hgt * 1.1;
-    glyph(ctx, g.ch, x0 + g.cx, y + dy, f, color);
+    const ex = E.inCubic(prog(u, out + j * 0.008, out + 0.4 + j * 0.008));
+    glyph(ctx, g.ch, x0 + g.cx, y + (1 - k) * hgt * 1.1 - ex * hgt * 1.1, f, color);
   });
   ctx.restore();
   return L;
 }
-// Eyebrow (tracked caps, accent) + serif lines, the site's own section-heading pattern.
 function superBlock(ctx, u, u0, eyebrow, lines, x, y, o = {}) {
-  const size = o.size || FORMAT.pick({ '16x9': 84, '9x16': 92 });
-  const eb = FORMAT.pick({ '16x9': 28, '9x16': 30 });
-  const col = o.color || C.white, acc = o.accent || C.red;
+  const size = o.size || FORMAT.pick({ '16x9': 104, '9x16': 100 });
+  const eb = FORMAT.pick({ '16x9': 26, '9x16': 30 });
+  const align = o.align || 'left';
   const out = o.out ?? 1e9;
-  // short accent rule draws first, then the eyebrow, then each line
-  const rl = E.outCubic(prog(u, u0, u0 + 0.5)) * (1 - E.inCubic(prog(u, out, out + 0.35)));
-  if (rl > 0) { ctx.fillStyle = acc; ctx.fillRect(x, y - eb * 0.38, 44 * rl, 3); }
-  riseLine(ctx, u, u0 + 0.1, eyebrow, x + 62, y, font(eb, 600, UI), acc, { track: eb * 0.28, out, stagger: 0.008 });
-  lines.forEach((ln, i) => riseLine(ctx, u, u0 + 0.25 + i * 0.18, ln, x, y + eb * 0.6 + size * (1.05 + i * 1.04), font(size, 400, DISPLAY), col, { out: out + i * 0.04 }));
-  if (o.note) {
-    const nf = font(FORMAT.pick({ '16x9': 36, '9x16': 38 }), 400, UI);
-    o.note.forEach((n, i) => riseLine(ctx, u, u0 + 0.6 + lines.length * 0.18 + i * 0.12, n, x, y + eb * 0.6 + size * (1.05 + (lines.length - 1) * 1.04) + 64 + i * FORMAT.pick({ '16x9': 44, '9x16': 50 }), nf, o.noteColor || C.mute, { out }));
+  if (eyebrow) riseLine(ctx, u, u0, eyebrow, x, y, font(eb, 600, UI), o.accent || C.red, { track: eb * 0.3, out, stagger: 0.006, align });
+  lines.forEach((ln, i) => riseLine(ctx, u, u0 + 0.2 + i * 0.22, ln, x, y + (eyebrow ? eb * 0.7 : -size * 0.9) + size * (1.08 + i * 1.04),
+    font(size, 400, DISPLAY), o.color || C.white, { out: out + i * 0.05, align }));
+}
+function scrim(ctx, from = 0.5, a = 0.85) {
+  const g = ctx.createLinearGradient(0, H * from, 0, H);
+  g.addColorStop(0, 'rgba(12,11,11,0)'); g.addColorStop(1, `rgba(12,11,11,${a})`);
+  ctx.fillStyle = g; ctx.fillRect(0, H * from, W, H * (1 - from));
+}
+const TS = (u) => M.TS(u);
+
+// ---------------------------------------------------------------- A. their work   (u 0..10)
+const PH = [[0, 'pPool', 0.5, 0.62], [6, 'pKitchen', 0.45, 0.5], [7.5, 'pCellar', 0.5, 0.45], [9, 'pBeach', 0.45, 0.5]];
+function photoAt(ctx, u, IMG, list) {
+  let cur = list[0], nxt = null;
+  list.forEach((p, i) => { if (u >= p[0]) { cur = p; nxt = list[i + 1]; } });
+  const end = nxt ? nxt[0] : cur[0] + 4;
+  M.cover(ctx, IMG[cur[1]], 0, 0, W, H, { fx: cur[2], fy: cur[3], zoom: logLerp(1.0, 1.1, prog(u, cur[0] - 0.5, end + 0.5)) });
+}
+function sceneWork(ctx, u, IMG) {
+  photoAt(ctx, u, IMG, PH);
+  if (u < 6) {
+    scrim(ctx, 0.45, 0.8);
+    superBlock(ctx, u, -0.5, '', ['Your work is', 'world class.'], S.x, P ? H * 0.62 : H - 300, { size: FORMAT.pick({ '16x9': 128, '9x16': 118 }), out: 5.4 });
   }
 }
 
-// ---------------------------------------------------------------- layout per format
-const S = FORMAT.safe;
-const LAY = FORMAT.pick({
-  '16x9': {
-    hero: { x: 96, y: 165, w: 1100, h: 688 },               // the homepage card (top_view, 1.6:1)
-    side: { x: 1270, y: 400 },                               // super column to the right of a card
-    card: { x: 96, y: 150, w: 1100, h: 780 },                // menu / map card
-    form: { x: 1824 - 836, y: 120, w: 836, h: 800 },         // form card sits right; super left
-    formSide: { x: 96, y: 440 },
-  },
-  '9x16': {
-    hero: { x: 72, y: 250, w: 560, h: 1212 },               // mobile homepage (m_top, 0.46:1)
-    side: { x: 670, y: 560 },
-    card: { x: 72, y: 250, w: 936, h: 820 },
-    form: { x: 72, y: 250, w: 936, h: 895 },
-    formSide: { x: 72, y: 1250 },
-  },
-});
-
-// ---------------------------------------------------------------- S1 hook   (u 0..4)
-function sceneHook(ctx, u) {
+// ---------------------------------------------------------------- B. the website, pulled back into a laptop   (u 10..19)
+function sceneSite(ctx, u) {
   fill(ctx, C.coal);
-  const size = FORMAT.pick({ '16x9': 196, '9x16': 168 });
-  const f = font(size, 400, DISPLAY);
-  const push = 1 + 0.035 * prog(u, 0, 4);
-  ctx.save(); M.zoomAbout(ctx, push, W / 2, H / 2);
-  const words = ["Luxury", "isn't", "loud."];
-  if (!P) {
-    let x = S.x + 40; const y = H * 0.56;
-    words.forEach((w, i) => {
-      const L = riseLine(ctx, u, [-0.7, 0.85, 1.85][i], w, x, y, f, i === 2 ? C.red : C.white, { out: 3.6 + i * 0.05, stagger: 0.03 });
-      x += L.width + size * 0.28;
-    });
-  } else {
-    words.forEach((w, i) => riseLine(ctx, u, [-0.7, 0.85, 1.85][i], w, S.x + 20, H * 0.40 + i * size * 1.08, f, i === 2 ? C.red : C.white, { out: 3.6 + i * 0.05, stagger: 0.03 }));
-  }
-  ctx.restore();
-  // the site's own crimson slider-progress bar, filling across the hook
-  const bw = W * E.inOutSine(prog(u, 0, 3.9));
-  ctx.fillStyle = C.crimson; ctx.fillRect(0, H - 10, bw, 10);
+  const tex = screenTex('scroll', (TS(u) - TS(10)) * 0.2, false);   // hero at rest, logo shimmer running
+  const pb = E.inOutCubic(prog(u, 10, 13.5));
+  const orbit = lerp(-14, 12, E.inOutSine(prog(u, 11, 19))) * deg;
+  const w = logLerp(W * 1.04, P ? 900 : 1180, pb);
+  const cy = lerp(H * 0.5 + (w / 1.6) * 0.57, P ? H * 0.52 : H * 0.84, pb);
+  laptop(ctx, tex, { cx: W / 2, cy, w, ry: lerp(0, orbit, pb), rx: lerp(0, 0.12, pb) });
+  if (u < 15) superBlock(ctx, u, 10.6, '', P ? ['Your website', 'should be', 'world class too.'] : ['Your website should be', 'world class too.'], S.x, P ? H * 0.1 : 70,
+    { size: FORMAT.pick({ '16x9': 84, '9x16': 92 }), out: 14.4 });
+  else superBlock(ctx, u, 15.2, 'VAN SELOW DESIGN BUILD', ['Every detail,', 'considered.'], S.x, P ? H * 0.1 : 70,
+    { size: FORMAT.pick({ '16x9': 84, '9x16': 96 }), out: 18.5 });
 }
 
-// ---------------------------------------------------------------- S2+S3 details -> hero -> logo  (u 4..14)
-// One continuous world: the homepage card. Details are macro windows on it, cut per beat; then the
-// camera pulls back to the whole card, holds, and pushes into the header logo (match cut to S4).
-const LOGO_PX = P ? { cx: 0.255 * 1170, cy: 0.198 * 2532, h: 0.17 * 2532 } : { cx: 1473, cy: 245, h: 288 };
-const LOGO_AT = P ? { x: W / 2, y: H * 0.40, h: 760 } : { x: W * 0.34, y: H * 0.5, h: 620 };
-function sceneHero(ctx, u, IMG) {
+// ---------------------------------------------------------------- C. macro on the logo, then the scroll   (u 19..31)
+function sceneLogoScroll(ctx, u) {
   fill(ctx, C.coal);
-  const img = P ? IMG.mTop : IMG.top;
-  const R = LAY.hero, k = R.w / img.width;              // image px -> world px
-  const a = W / H;
-  // detail windows (image fractions) for beats 4, 5, 6
-  const D = P
-    ? [win(img, 0.5, 0.62, 0.55, a), win(img, 0.5, 0.86, 0.5, a), win(img, 0.5, 0.965, 0.42, a)]
-    : [win(img, 0.25, 0.37, 0.34, a), win(img, 0.24, 0.72, 0.3, a), win(img, 0.91, 0.66, 0.16, a)];
-  const toWorld = (V) => ({ x: R.x + V.x * k, y: R.y + V.y * k, w: V.w * k, h: V.h * k });
-  const SCREEN = { x: 0, y: 0, w: W, h: H };
-  const s2 = LOGO_AT.h / LOGO_PX.h;                     // screen px per image px at the logo match
-  const VL = { x: R.x + LOGO_PX.cx * k - LOGO_AT.x * k / s2, y: R.y + LOGO_PX.cy * k - LOGO_AT.y * k / s2, w: W * k / s2, h: H * k / s2 };
-  let V;
-  if (u < 7) {
-    const i = Math.min(2, Math.floor(u - 4));
-    const Dw = toWorld(D[i]);
-    const z = 1 - 0.06 * prog(u, 4 + i, 5 + i);          // slow push inside each macro
-    V = { x: Dw.x + Dw.w * (1 - z) / 2, y: Dw.y + Dw.h * (1 - z) / 2, w: Dw.w * z, h: Dw.h * z };
-  } else if (u < 12) {
-    const Dw = toWorld(D[2]);
-    const z = 1 - 0.06;
-    const Dz = { x: Dw.x + Dw.w * (1 - z) / 2, y: Dw.y + Dw.h * (1 - z) / 2, w: Dw.w * z, h: Dw.h * z };
-    const t = E.inOutCubic(prog(u, 7, 8.6));
-    V = lerpV(Dz, SCREEN, t);
-    const drift = 0.015 * prog(u, 8.6, 12);              // breathe in slightly on the hold
-    V = { x: V.x + V.w * drift / 2, y: V.y + V.h * drift / 2, w: V.w * (1 - drift), h: V.h * (1 - drift) };
-  } else {
-    const d = 0.015;
-    const V0 = { x: W * d / 2, y: H * d / 2, w: W * (1 - d), h: H * (1 - d) };
-    V = lerpV(V0, VL, E.inCubic(prog(u, 12, 14)));
+  if (u < 23) {
+    // macro: the header logo filling the frame, crimson shimmer moving (page at rest)
+    const tex = screenTex('scroll', Math.min(0.75, 0.3 + (TS(u) - TS(19)) * 0.2), false);
+    if (!tex) return;
+    const z = logLerp(1, 1.12, prog(u, 19, 23));
+    const lw = (P ? 330 : 600) / z, lh = lw * H / W;
+    M.crop(ctx, tex, [1080 - lw / 2, 160 - lh * 0.47, lw, lh], 0, 0, W, H);
+    const v = ctx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, H * 0.95);
+    v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.5)');
+    ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
+    superBlock(ctx, u, 19.6, 'SIGNATURE LOGO', [], S.x, P ? H * 0.86 : H - 90, { out: 22.6 });
+    return;
   }
-  const s = W / V.w;
-  ctx.save();
-  ctx.scale(s, s); ctx.translate(-V.x, -V.y);
-  shadowCard(ctx, R.x, R.y, R.w, R.h, 18 / 1);
-  view(ctx, img, { x: 0, y: 0, w: img.width, h: img.height }, R.x, R.y, R.w, img.height * k, 18);
-  ctx.restore();
-  // client super beside the card, only while the whole card is in view
-  if (u >= 8 && u < 13) {
-    const o = 1 - E.inCubic(prog(u, 11.6, 12.4));
-    ctx.save(); ctx.globalAlpha = o;
-    superBlock(ctx, u, 8.4, 'NEW WEBSITE', P ? ['Van', 'Selow', 'Design', 'Build'] : ['Van Selow', 'Design Build'], LAY.side.x, LAY.side.y,
-      { size: FORMAT.pick({ '16x9': 96, '9x16': 70 }), note: ['vanselowdesign.com'] });
-    ctx.restore();
-  }
+  // the scroll: big logo hands off to the slim sticky bar; camera starts close on the header, pulls out
+  const tex = screenTex('scroll', 0.7 + (TS(u) - TS(23)) * 1.15, false);
+  const k = E.inOutCubic(prog(u, 23.5, 28));
+  const w = logLerp(P ? 2400 : 2700, P ? 980 : 1240, k);
+  const cy = lerp(H * 0.5 + (w / 1.6) * 0.86, P ? H * 0.45 : H * 0.84, k);
+  laptop(ctx, tex, { cx: W / 2, cy, w, ry: lerp(0, -8 * deg, k), rx: lerp(0, 0.1, k) });
+  superBlock(ctx, u, 26, 'STICKY HEADER', ['The logo glides', 'into a slim bar.'], S.x, P ? H * 0.72 : 70,
+    { size: FORMAT.pick({ '16x9': 76, '9x16': 84 }), out: 30.5 });
 }
 
-// ---------------------------------------------------------------- S4 logo   (u 14..19)
-function drawLogo(ctx, u, IMG, cx, cy, h, alpha = 1) {
-  // the site's own SVG gradient sweep (7 s loop), played at 2.4x so a full sweep reads in the shot
-  const tt = Math.max(0, u - 14) * PER() * 2.4;
-  const n = IMG.shimmer.length, fr = IMG.shimmer[Math.floor(((tt / 7) % 1) * n) % n];
-  const s = h / 858, w = 797 * s;
-  ctx.save(); ctx.globalAlpha = alpha;
-  ctx.drawImage(fr, cx - 395 * s, cy - 455 * s, w, 920 * s);
-  ctx.restore();
-}
-function sceneLogo(ctx, u, IMG) {
+// ---------------------------------------------------------------- D/E/F. menu, form, map   (u 31..51.5)
+function sceneClip(ctx, u, name, u0, u1, ct0, ct1, focus, eyebrow, lines, side) {
   fill(ctx, C.coal);
-  const whip = E.inOutCubic(prog(u, 18.5, 19));
-  ctx.save(); ctx.translate(-whip * W, 0);
-  const k = springU(u, 14, SPRING.gentle);
-  const sc = lerp(1, 0.9, E.outCubic(prog(u, 14, 16.5))) * (1 + 0.02 * wobble(u - 14, 1.4, 3));
-  drawLogo(ctx, u, IMG, LOGO_AT.x, LOGO_AT.y, LOGO_AT.h * sc);
-  const sx = P ? S.x + 40 : W * 0.6, sy = P ? H * 0.74 : H * 0.44;
-  superBlock(ctx, u, 15, 'SIGNATURE', ['Logo', 'animation'], sx, sy, { size: FORMAT.pick({ '16x9': 96, '9x16': 92 }), note: P ? ['The crimson S catches the light,', 'just like on their site.'] : ['The crimson S catches', 'the light, just like', 'on their site.'] });
-  ctx.restore();
-  if (whip > 0) { ctx.save(); ctx.translate(W - whip * W, 0); sceneMenuBody(ctx, 19, IMG, false); ctx.restore(); }
+  const tex = screenTex(name, lerp(ct0, ct1, prog(u, u0, u1)), true);
+  const t = E.inOutSine(prog(u, u0, u1));
+  const enter = springU(u, u0 - 0.4, SPRING.gentle);
+  const w = (P ? 1000 : 1260) * logLerp(1, P ? 1.3 : 1.14, t);
+  const dir = side === 'left' ? 1 : -1;
+  const ry = dir * lerp(16, 8, t) * deg * (P ? 0.4 : 1);
+  const cx = (P ? W / 2 : W / 2 + dir * 140) - (focus[0] - 0.5) * w * 0.3 * t;
+  const cy = (P ? H * 0.47 : H * 0.88) - (focus[1] - 0.5) * (w / 1.6) * 0.3 * t + (1 - enter) * H * 0.6;
+  laptop(ctx, tex, { cx, cy, w, ry, rx: 0.1 });
+  const al = P ? 'left' : side === 'left' ? 'left' : 'right';
+  superBlock(ctx, u, u0 + 0.4, eyebrow, lines, P ? S.x : al === 'left' ? S.x : W - S.x, P ? H * 0.7 : 70,
+    { size: FORMAT.pick({ '16x9': 76, '9x16': 88 }), out: u1 - 0.6, align: al });
 }
 
-// ---------------------------------------------------------------- S5 menu   (u 19..25.5)
-function sceneMenuBody(ctx, u, IMG, withSuper = true) {
+// ---------------------------------------------------------------- G. speed: laptop + phone   (u 51.5..56)
+function sceneSpeed(ctx, u) {
   fill(ctx, C.coal);
-  const R = LAY.card;
-  const pan = E.inOutCubic(prog(u, 22.25, 22.75));
-  const imgs = P ? [IMG.mMenu, IMG.mMenu] : [IMG.menuServices, IMG.menuAreas];
-  // inside the card: push toward the dropdown (desktop) / down the drawer (mobile)
-  const t = E.inOutSine(prog(u, 19.3, 25.5));
-  imgs.forEach((img, i) => {
-    if (P && i === 1) return;
-    const off = (i - pan) * (W);
-    if (Math.abs(off) >= W) return;
-    const a = R.w / R.h;
-    const V = P ? lerpV(win(img, 0.5, 0.2, 1, a), win(img, 0.5, 0.5, 1, a), t)
-      : lerpV(win(img, 0.5, 0.38, 1, a), win(img, i ? 0.45 : 0.38, 0.33, 0.66, a), i ? E.inOutSine(prog(u, 22.5, 25.5)) : t);
-    shadowCard(ctx, R.x + off, R.y, R.w, R.h, 18);
-    view(ctx, img, V, R.x + off, R.y, R.w, R.h, 18);
-  });
-  if (withSuper) {
-    const sx = P ? S.x : LAY.side.x, sy = P ? R.y + R.h + 110 : LAY.side.y - 40;
-    superBlock(ctx, u, 20, 'MEGA MENU', P ? ['Their whole world,', 'one tap away.'] : ['Their whole', 'world, one', 'hover away.'], sx, sy,
-      { size: FORMAT.pick({ '16x9': 96, '9x16': 80 }), out: 25.1, note: P ? ['Services · Areas · Gallery · Quote'] : ['Services, service areas,', 'gallery and a quote CTA.'] });
-  }
+  const k1 = springU(u, 51.2, SPRING.gentle), k2 = springU(u, 51.7, SPRING.gentle);
+  const lt = screenTex('scroll', 5.9, false);
+  laptop(ctx, lt, P ? { cx: W * 0.44, cy: H * 0.5 + (1 - k1) * 300, w: 860, ry: 12 * deg, rx: 0.1 }
+    : { cx: W * 0.42 - (1 - k1) * 300, cy: H * 0.86, w: 1000, ry: 14 * deg, rx: 0.1 });
+  const pw = P ? 400 : 340;
+  phone(ctx, screenTex2('mobile', 0.3 + (TS(u) - TS(51.5)) * 1.6), { x: P ? W * 0.55 : W * 0.66, y: (P ? H * 0.3 : H * 0.17) + (1 - k2) * H * 0.8, w: pw, ry: -10 * deg });
+  superBlock(ctx, u, 51.9, 'PERFORMANCE', ['Built for speed.'], S.x, P ? H * 0.74 : 70,
+    { size: FORMAT.pick({ '16x9': 88, '9x16': 100 }), out: 55.5 });
 }
-function sceneMenu(ctx, u, IMG) {
-  const k = springU(u, 19, SPRING.snappy || SPRING.gentle);
-  sceneMenuBody(ctx, u, IMG);
+// a second texture so the phone and laptop can show different clips in one frame
+const TEX2 = document.createElement('canvas');
+function screenTex2(name, ct) {
+  const im = frame(name, ct); if (!im) return null;
+  if (TEX2.width !== im.width) { TEX2.width = im.width; TEX2.height = im.height; }
+  TEX2.getContext('2d').drawImage(im, 0, 0);
+  return TEX2;
 }
 
-// ---------------------------------------------------------------- S6 form   (u 25.5..31.5)
-// form_step2 holds the real typed + verified state; form_view holds the real empty field.
-const FCARD = { x: 1241, y: 427, w: 1158, h: 1108 };       // form card in form_step2.png (px)
-const FIELD = { x: 1385, y: 938, w: 870, h: 111 };         // ZIP field in form_step2.png
-const FIELD0 = { x: 1387, y: 602, w: 867, h: 111 };        // same field, empty, in form_view.png
-function sceneForm(ctx, u, IMG) {
-  fill(ctx, C.paper);
-  const R = LAY.form;
-  const rise = springU(u, 25.5, SPRING.gentle);
-  const y = R.y + (1 - rise) * 260;
-  const s = R.w / FCARD.w;
-  const zoom = 1 + 0.06 * E.inOutSine(prog(u, 25.5, 31.5));
-  ctx.save();
-  M.zoomAbout(ctx, zoom, R.x + (FIELD.x + FIELD.w / 2 - FCARD.x) * s, y + (FIELD.y - FCARD.y) * s);
-  ctx.save(); ctx.shadowColor = 'rgba(60,40,30,0.18)'; ctx.shadowBlur = 70; ctx.shadowOffsetY = 30;
-  rrect(ctx, R.x, y, R.w, FCARD.h * s, 24); ctx.fillStyle = '#fff'; ctx.fill(); ctx.restore();
-  ctx.save(); rrect(ctx, R.x, y, R.w, FCARD.h * s, 24); ctx.clip();
-  ctx.drawImage(IMG.formDone, FCARD.x, FCARD.y, FCARD.w, FCARD.h, R.x, y, R.w, FCARD.h * s);
-  const fx = R.x + (FIELD.x - FCARD.x) * s, fy = y + (FIELD.y - FCARD.y) * s;
-  const typed = clamp(Math.floor((u - 26.5) / 0.5) + 1, 0, 5);
-  const ok = u >= 29;
-  if (typed === 0) {
-    ctx.drawImage(IMG.formEmpty, FIELD0.x, FIELD0.y, FIELD0.w, FIELD0.h, fx, fy, FIELD.w * s, FIELD.h * s);
-  } else if (!ok) {
-    // reveal the real typed digits one by one (each ~23.6 px wide in the capture)
-    const x0 = fx + (1411 - FIELD.x) * s + typed * 23.6 * s;
-    ctx.fillStyle = 'rgb(250,248,245)';
-    ctx.fillRect(x0, fy + 6 * s, (FIELD.x + FIELD.w - 60 - 1411 - typed * 23.6) * s, (FIELD.h - 12) * s);
-    // caret
-    if ((u * 2) % 1 < 0.6) { ctx.fillStyle = C.ink; ctx.fillRect(x0 + 2, fy + 34 * s, 2.5, 44 * s); }
-  }
-  if (!ok) {
-    ctx.fillStyle = 'rgb(250,248,245)'; ctx.fillRect(fx + (FIELD.w - 64) * s, fy + 6 * s, 56 * s, (FIELD.h - 12) * s);   // hide the check
-    ctx.fillStyle = '#fff'; ctx.fillRect(fx - 4, fy + (FIELD.h + 8) * s, 640 * s, 56 * s);                       // hide "Great news"
-  } else {
-    // the verified line wipes on left-to-right; the check pops
-    const wp = E.outCubic(prog(u, 29, 29.6));
-    ctx.fillStyle = '#fff'; ctx.fillRect(fx - 4 + 640 * s * wp, fy + (FIELD.h + 8) * s, 640 * s * (1 - wp) + 4, 56 * s);
-    const ck = springU(u, 29, SPRING.bouncy || SPRING.gentle);
-    if (ck < 0.999) {
-      const cx = fx + (FIELD.w - 36) * s, cy = fy + FIELD.h * s / 2;
-      ctx.fillStyle = 'rgb(250,248,245)'; ctx.fillRect(cx - 28 * s, cy - 26 * s, 56 * s, 52 * s);
-      ctx.save(); ctx.translate(cx, cy); ctx.scale(ck, ck);
-      ctx.drawImage(IMG.formDone, FIELD.x + FIELD.w - 64, FIELD.y + FIELD.h / 2 - 26, 56, 52, -28 * s, -26 * s, 56 * s, 52 * s);
-      ctx.restore();
-    }
-  }
-  ctx.restore();
-  ctx.restore();
-  superBlock(ctx, u, 26, 'CUSTOM QUOTE FORM', ['Qualifies', 'every lead.'], LAY.formSide.x, LAY.formSide.y,
-    { size: FORMAT.pick({ '16x9': 100, '9x16': 92 }), color: C.ink, accent: C.crimson, noteColor: '#6b655e', out: 31.1,
-      note: ['5 guided steps. The ZIP is checked', 'against their service area, live.'] });
+// ---------------------------------------------------------------- H. care and precision   (u 56..63.5)
+const CRAFT = [[56, 'pCellar', 0.5, 0.35], [60, 'pKitchen', 0.62, 0.42]];
+function sceneCraft(ctx, u, IMG) {
+  photoAt(ctx, u, IMG, CRAFT);
+  scrim(ctx, 0.3, 0.9);
+  const y = P ? H * 0.56 : H * 0.5;
+  const big = FORMAT.pick({ '16x9': 120, '9x16': 108 });
+  superBlock(ctx, u, 56.4, 'WORK WITH SOMEONE WHO TAKES', [], S.x, y, { out: 63 });
+  superBlock(ctx, u, 57, '', ['The same care.'], S.x, y + 40, { size: big, out: 63.05 });
+  superBlock(ctx, u, 59.5, '', ['The same precision.'], S.x, y + 40 + big * 1.08, { size: big, color: C.red, out: 63.1 });
 }
 
-// ---------------------------------------------------------------- S7 map   (u 31.5..38)
-const MAPR = { x: 340, y: 360, w: 2203, h: 1440 };          // map card + area list in the captures
-const PINS = [[33, 'mapStPete', 0.395, 0.78], [35, 'mapSeminole', 0.305, 0.703], [36.5, 'mapTreasure', 0.318, 0.785]];
-function sceneMap(ctx, u, IMG) {
-  fill(ctx, C.coal);
-  const R = LAY.card;
-  const rise = springU(u, 31.5, SPRING.gentle);
-  const y = R.y + (1 - rise) * 240;
-  let key = 'map', pin = null;
-  PINS.forEach(([b, k, px, py]) => { if (u >= b) { key = k; pin = [b, px, py]; } });
-  const img = IMG[key];
-  const a = R.w / R.h;
-  const z = logLerp(1, P ? 1.9 : 1.18, E.inOutSine(prog(u, 31.5, 38)));
-  const base = P ? { x: 340, y: 380, w: 1080, h: 1080 / a } : { x: MAPR.x, y: MAPR.y, w: MAPR.w, h: MAPR.w / a };
-  const fx = P ? 0.33 : 0.3, fy = 0.72;
-  const tw = base.w / z, th = base.h / z;
-  const V = { x: lerp(base.x, fx * img.width - tw / 2, prog(z, 1, 2)), y: clamp(fy * img.height - th / 2, base.y, img.height - th), w: tw, h: th };
-  if (P) { V.x = clamp(fx * img.width - tw / 2, 0, img.width - tw); }
-  shadowCard(ctx, R.x, y, R.w, R.h, 18);
-  view(ctx, img, V, R.x, y, R.w, R.h, 18);
-  // ping ring at the hovered pin, echoing the site's own pin halos
-  if (pin) {
-    const s = R.w / V.w;
-    const px = R.x + (pin[1] * img.width - V.x) * s, py = y + (pin[2] * img.height - V.y) * s;
-    const t = prog(u, pin[0], pin[0] + 1.4);
-    if (t < 1) {
-      ctx.save(); ctx.strokeStyle = C.red; ctx.globalAlpha = 1 - t; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(px, py, 12 + E.outCubic(t) * 70, 0, M.TAU); ctx.stroke(); ctx.restore();
-    }
-  }
-  const sx = P ? S.x : LAY.side.x, sy = P ? R.y + R.h + 110 : LAY.side.y - 40;
-  superBlock(ctx, u, 32, 'INTERACTIVE MAP', P ? ['Every community', 'they serve.'] : ['Every', 'community', 'they serve.'], sx, sy,
-    { size: FORMAT.pick({ '16x9': 96, '9x16': 80 }), out: 37.6, note: P ? ['Hover a town, its pin lights up.'] : ['Hover a town and its', 'pin lights up.'] });
-}
-
-// ---------------------------------------------------------------- S8 speed   (u 38..42)
-function sceneSpeed(ctx, u, IMG) {
-  fill(ctx, C.coal);
-  const d = P ? { x: 72, y: 250, w: 936, h: 585 } : { x: 96, y: 210, w: 1000, h: 625 };
-  const ph = P ? { x: 690, y: 640, w: 300, h: 649 } : { x: 960, y: 330, w: 280, h: 606 };
-  const k1 = springU(u, 37.6, SPRING.snappy), k2 = springU(u, 38.4, SPRING.bouncy);
-  const dx = (1 - k1) * -W * 0.6;
-  shadowCard(ctx, d.x + dx, d.y, d.w, d.h, 16);
-  view(ctx, IMG.top, { x: 0, y: 0, w: IMG.top.width, h: IMG.top.width * d.h / d.w }, d.x + dx, d.y, d.w, d.h, 16);
-  // the site's crimson progress line, here as a load bar that fills in half a beat
-  const lb = E.outExpo(prog(u, 38.15, 38.75));
-  ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(d.x + dx, d.y + d.h + 22, d.w, 6);
-  ctx.fillStyle = C.red; ctx.fillRect(d.x + dx, d.y + d.h + 22, d.w * lb, 6);
-  const py = ph.y + (1 - k2) * (H - ph.y + 40);
-  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 50; ctx.shadowOffsetY = 20;
-  rrect(ctx, ph.x - 10, py - 10, ph.w + 20, ph.h + 20, 46); ctx.fillStyle = '#0d0d0d'; ctx.fill(); ctx.restore();
-  view(ctx, IMG.mTop, { x: 0, y: 0, w: IMG.mTop.width, h: IMG.mTop.width * ph.h / ph.w }, ph.x, py, ph.w, ph.h, 38);
-  const sx = P ? S.x : 1340, sy = P ? 1390 : 400;
-  superBlock(ctx, u, 38.9, 'PERFORMANCE', P ? ['Built for speed.'] : ['Built for', 'speed.'], sx, sy,
-    { size: FORMAT.pick({ '16x9': 120, '9x16': 100 }), out: 41.7, note: P ? ['Optimized images · shift-free layout'] : ['Optimized images.', 'Shift-free layout.', 'Fully responsive.'] });
-}
-
-// ---------------------------------------------------------------- S9 luxury montage   (u 42..46.5)
-const PHOTOS = [[42, 'pPool', 0.5, 0.6], [43, 'pKitchen', 0.45, 0.5], [44, 'pCellar', 0.5, 0.5], [45, 'pBeach', 0.42, 0.45]];
-function sceneLuxury(ctx, u, IMG) {
-  let cur = PHOTOS[0];
-  PHOTOS.forEach((p) => { if (u >= p[0]) cur = p; });
-  const img = IMG[cur[1]];
-  const z = logLerp(1.0, 1.08, prog(u, cur[0], cur[0] + 1.5));
-  M.cover(ctx, img, 0, 0, W, H, { fx: cur[2], fy: cur[3], zoom: z });
-  // scrim under the type only (bottom band), not a full gradient
-  const g = ctx.createLinearGradient(0, H * 0.45, 0, H);
-  g.addColorStop(0, 'rgba(20,19,18,0)'); g.addColorStop(1, 'rgba(20,19,18,0.82)');
-  ctx.fillStyle = g; ctx.fillRect(0, H * 0.45, W, H * 0.55);
-  const sx = S.x, sy = P ? 1180 : H - 330;
-  superBlock(ctx, u, 42.2, 'FOR A LUXURY AUDIENCE', ['Designed to feel', 'like their homes.'], sx, sy, { size: FORMAT.pick({ '16x9': 100, '9x16': 92 }) });
-}
-
-// ---------------------------------------------------------------- S10 end card   (u 46.5..56)
+// ---------------------------------------------------------------- I. end card   (u 63.5..76)
 function sceneEnd(ctx, u, IMG) {
-  // a charcoal panel rises over the last photo, crimson leading edge
-  const wp = E.inOutCubic(prog(u, 46.25, 46.75));
-  if (wp < 1) sceneLuxury(ctx, u, IMG);
+  const wp = E.inOutCubic(prog(u, 63.5, 64));
+  if (wp < 1) sceneCraft(ctx, u, IMG);
   const top = H * (1 - wp);
   ctx.fillStyle = C.coal; ctx.fillRect(0, top, W, H - top);
-  if (wp < 1) { ctx.fillStyle = C.red; ctx.fillRect(0, top, W, 6); }
-  if (u < 46.6) return;
-  ctx.save(); M.zoomAbout(ctx, logLerp(1, 1.04, prog(u, 46.75, 56)), P ? S.x : 160, H * 0.5);
-  const lg = IMG.wdm, lw = FORMAT.pick({ '16x9': 760, '9x16': 840 }), lh = lw * lg.height / lg.width;
-  const k = springU(u, 46.75, SPRING.gentle);
-  const cx = P ? S.x : 160, cy = P ? 560 : 330;
-  ctx.save(); ctx.globalAlpha = clamp(k * 1.4);
-  ctx.translate(0, (1 - k) * 60);
-  ctx.drawImage(lg, cx, cy, lw, lh);
-  ctx.restore();
-  superBlock(ctx, u, 47.6, 'WEBSITES FOR LUXURY BRANDS', P ? ['Your clients', 'expect luxury.', 'We build it.'] : ['Your clients expect luxury.', 'We build it.'], P ? S.x : 160, P ? 800 : 560,
-    { size: FORMAT.pick({ '16x9': 96, '9x16': 92 }), accent: C.wdm });
-  const uf = font(FORMAT.pick({ '16x9': 44, '9x16': 52 }), 500, UI);
-  const ux = P ? S.x : 160, uy = P ? 1340 : 900;
-  const L = riseLine(ctx, u, 49.4, 'wdmorgan.com', ux, uy, uf, C.white);
-  const ul = E.outCubic(prog(u, 49.6, 50.4));
-  ctx.fillStyle = C.wdm; ctx.fillRect(ux, uy + 16, L.width * ul, 4);
+  if (u < 63.9) return;
+  ctx.save(); M.zoomAbout(ctx, logLerp(1, 1.035, prog(u, 64, 76)), P ? S.x : 160, H * 0.5);
+  const lg = IMG.wdm, lw = FORMAT.pick({ '16x9': 700, '9x16': 820 }), lh = lw * lg.height / lg.width;
+  const k = springU(u, 64, SPRING.gentle);
+  const lx = P ? S.x : 160, ly = P ? H * 0.3 : 250;
+  ctx.save(); ctx.globalAlpha = clamp(k * 1.4); ctx.drawImage(lg, lx, ly + (1 - k) * 50, lw, lh); ctx.restore();
+  superBlock(ctx, u, 65, 'WEBSITES FOR LUXURY BRANDS', ['World-class websites', 'for world-class work.'], lx, ly + lh + FORMAT.pick({ '16x9': 110, '9x16': 130 }),
+    { size: FORMAT.pick({ '16x9': 96, '9x16': 84 }), accent: C.wdm });
+  const uy = ly + lh + FORMAT.pick({ '16x9': 430, '9x16': 470 });
+  const L = riseLine(ctx, u, 66.8, 'wdmorgan.com', lx, uy, font(FORMAT.pick({ '16x9': 46, '9x16': 54 }), 500, UI), C.white);
+  ctx.fillStyle = C.wdm; ctx.fillRect(lx, uy + 16, L.width * E.outCubic(prog(u, 67, 67.8)), 4);
   ctx.restore();
 }
 
 // ---------------------------------------------------------------- film
-const shimmer = {};
-for (let i = 0; i < 42; i++) shimmer['sh' + i] = `assets/logo/shimmer/${String(i).padStart(2, '0')}.png`;
+function draw(ctx, u, t, IMG) {
+  if (u < 10) sceneWork(ctx, u, IMG);
+  else if (u < 19) sceneSite(ctx, u);
+  else if (u < 31) sceneLogoScroll(ctx, u);
+  else if (u < 38) sceneClip(ctx, u, 'menu', 31, 38, 0.2, 5.0, [0.35, 0.3], 'MEGA MENU', ['Their whole world,', 'one hover away.'], 'right');
+  else if (u < 45) sceneClip(ctx, u, 'form', 38, 45, 1.3, 7.4, [0.6, 0.45], 'CUSTOM QUOTE FORM', ['Qualifies', 'every lead.'], 'left');
+  else if (u < 51.5) sceneClip(ctx, u, 'map', 45, 51.5, 1.4, 7.0, [0.35, 0.6], 'INTERACTIVE MAP', ['Every community', 'they serve.'], 'right');
+  else if (u < 56) sceneSpeed(ctx, u);
+  else if (u < 63.5) sceneCraft(ctx, u, IMG);
+  else sceneEnd(ctx, u, IMG);
+}
 
+const dry = document.createElement('canvas').getContext('2d');
+let IMGS = null;
 M.film({
   fonts: [font(100, 400, DISPLAY), font(40, 500, UI), font(40, 600, UI), font(40, 400, UI)],
   images: {
-    top: 'assets/shots/top_view.png', mTop: 'assets/shots/m_top.png', mMenu: 'assets/shots/m_menu.png',
-    menuServices: 'assets/shots/menu_services.png', menuAreas: 'assets/shots/menu_areas.png',
-    formDone: 'assets/shots/form_step2.png', formEmpty: 'assets/shots/form_view.png',
-    map: 'assets/shots/map_view2.png', mapStPete: 'assets/shots/map_hover_StPetersburg.png',
-    mapSeminole: 'assets/shots/map_hover_Seminole.png', mapTreasure: 'assets/shots/map_hover_TreasureIsland.png',
     pPool: 'assets/photos/waterfront-pool-home-lounge-chairs-van-selow.jpg',
     pKitchen: 'assets/photos/dunedin-whole-home-remodel-kitchen-van-selow.jpg',
     pCellar: 'assets/photos/tierra-verde-image-6.jpg',
     pBeach: 'assets/photos/bellair-beach-luxury-outdoor-remodel-van-selow.jpg',
     wdm: 'assets/wdm-logo.png',
-    ...shimmer,
   },
-  init(ctx, IMG) { IMG.shimmer = Array.from({ length: 42 }, (_, i) => IMG['sh' + i]); },
+  async init(ctx, IMG) {
+    IMGS = IMG;
+    await Promise.all(Object.keys(CLIP).map(async (n) => {
+      try { const m = await fetch(`assets/clips/${n}/meta.json`).then((r) => r.json()); META[n] = m.meta; CLIP[n].n = m.frames; } catch { /* clip not recorded yet */ }
+    }));
+  },
+  async prepare(times) {
+    const need = new Set(); DRY = need;
+    for (const t of times) { dry.save(); try { draw(dry, M.U(t), t, IMGS); } catch { /* dry pass */ } dry.restore(); }
+    DRY = null;
+    await Promise.all([...need].map(load));
+  },
+  samples: 8,
   hits: HITS,
-  draw(ctx, u, t, IMG) {
-    if (u < 4) sceneHook(ctx, u);
-    else if (u < 14) sceneHero(ctx, u, IMG);
-    else if (u < 19) sceneLogo(ctx, u, IMG);
-    else if (u < 25.5) sceneMenu(ctx, u, IMG);
-    else if (u < 31.5) sceneForm(ctx, u, IMG);
-    else if (u < 38) sceneMap(ctx, u, IMG);
-    else if (u < 42) sceneSpeed(ctx, u, IMG);
-    else if (u < 46.25) sceneLuxury(ctx, u, IMG);
-    else sceneEnd(ctx, u, IMG);
-  },
+  draw,
 });

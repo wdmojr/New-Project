@@ -237,7 +237,7 @@ export const TS = (u) => GRID.offset + u * GRID.period;   // beats -> seconds
 // anything else that must not be averaged away by the sub-frame samples.
 // samples may be a number or a function of t (fewer sub-frames where nothing moves fast or a shot
 // is expensive, e.g. a raymarched 3-D scene).
-export async function film({ draw, init, post, fonts = [], images = {}, hits = [], samples = 16, shutter = 0.5 }) {
+export async function film({ draw, init, post, prepare, fonts = [], images = {}, hits = [], samples = 16, shutter = 0.5 }) {
   const canvas = document.getElementById('film');
   canvas.width = W; canvas.height = H;
   if (RENDER) document.body.classList.add('render');
@@ -280,9 +280,12 @@ export async function film({ draw, init, post, fonts = [], images = {}, hits = [
     post(mctx, U(t0), t0, IMG);
     mctx.restore();
   };
-  window.seek = (t) => {
+  // prepare(times) may load what those instants need (e.g. video frames) before they are drawn;
+  // the renderer awaits seek(), so frames stay a pure function of t.
+  window.seek = async (t) => {
     const t0 = t + 0.5 / fps;
     const n = typeof samples === 'function' ? samples(t0) : samples;
+    if (prepare) await prepare(!blur || n <= 1 ? [t0] : Array.from({ length: n }, (_, k) => t0 + (k / n) * (shutter / fps)));
     if (!blur || n <= 1) { frame(mctx, t0); runPost(t0); return; }
     for (let k = 0; k < n; k++) {
       frame(bctx, t0 + (k / n) * (shutter / fps));
@@ -295,7 +298,7 @@ export async function film({ draw, init, post, fonts = [], images = {}, hits = [
   window.HITS = hits;
   window.DURATION = Number(cfg.duration || 15);
   window.filmReady = true;
-  window.seek(0);
+  await window.seek(0);
   if (!RENDER) preview(canvas, window.DURATION);
 }
 
