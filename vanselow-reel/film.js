@@ -245,7 +245,7 @@ function sceneWork(ctx, u, IMG) {
   photoAt(ctx, u, IMG, PH);
   if (u < 6) {
     scrim(ctx, 0.45, 0.8);
-    superBlock(ctx, u, -0.5, '', ['Your work is', 'world class.'], S.x, P ? H * 0.62 : H - 300, { size: FORMAT.pick({ '16x9': 128, '9x16': 118 }), out: 5.4 });
+    superBlock(ctx, u, 0.6, '', ['Your work is', 'world class.'], S.x, P ? H * 0.62 : H - 300, { size: FORMAT.pick({ '16x9': 128, '9x16': 118 }), out: 5.4 });
   }
 }
 
