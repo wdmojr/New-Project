@@ -4,12 +4,12 @@
 # Cut the ElevenLabs take into phrases at its silences and land each on the beat grid.
 import json, numpy as np, soundfile as sf
 B = json.load(open('beats.json')); P, OFF = B['period'], B['offset']
-x, sr = sf.read('audio/vo/take2.wav')
+x, sr = sf.read('audio/vo/take2_edit.wav')
 # (take start, take end, beat it lands on, text)
 PH = [
   (0.00, 2.11, 1.0, "Your work is world class."),
   (2.49, 4.08, 6.0, "The images speak for themselves."),
-  (4.60, 6.56, 10.0, "Your website should be world class too."),
+  (4.60, 5.90, 10.0, "Your website should be too."),
   (7.09, 10.68, 15.0, "For Van Selow Design Build, every detail was considered."),
   (11.16, 14.85, 23.0, "A signature logo that glides into a sticky header as you scroll."),
   (15.33, 18.45, 31.0, "A menu that opens their whole world in one hover."),
@@ -21,6 +21,8 @@ PH = [
 ]
 out = np.zeros(int(38 * sr)); pad = int(0.03 * sr); fade = int(0.02 * sr)
 prev_end, rows = 0, []
+# take2_edit.wav: 'world class' (0.66 s at 5.575 s) cut from the third line; later phrases shift up
+PH = [(a - (0.66 if a > 6 else 0), b - (0.66 if a > 6 else 0), beat, txt) for a, b, beat, txt in PH]
 for a, b, beat, txt in PH:
     seg = x[max(0, int(a * sr) - pad):int(b * sr) + pad].copy()
     ramp = np.linspace(0, 1, fade); seg[:fade] *= ramp; seg[-fade:] *= ramp[::-1]

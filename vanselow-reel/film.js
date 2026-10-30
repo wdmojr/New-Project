@@ -260,7 +260,7 @@ function sceneSite(ctx, u) {
   const cx = lerp(W / 2, P ? W / 2 : W * 0.63, pb);
   laptop(ctx, tex, { cx, cy, w, ry: lerp(0, orbit, pb), rx: lerp(0, 0.12, pb) });
   const ty = P ? H * 0.1 : H * 0.34;
-  if (u < 15) superBlock(ctx, u, 10.8, '', P ? ['Your website', 'should be', 'world class too.'] : ['Your website', 'should be', 'world class', 'too.'], S.x, ty,
+  if (u < 15) superBlock(ctx, u, 10.8, '', P ? ['Your website', 'should be too.'] : ['Your website', 'should be too.'], S.x, ty,
     { size: FORMAT.pick({ '16x9': 84, '9x16': 92 }), out: 14.4 });
   else superBlock(ctx, u, 15.2, 'VAN SELOW DESIGN BUILD', ['Every detail,', 'considered.'], S.x, ty,
     { size: FORMAT.pick({ '16x9': 84, '9x16': 96 }), out: 18.5 });
