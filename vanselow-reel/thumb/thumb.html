@@ -4,34 +4,43 @@
   @font-face { font-family: Display; src: url(../fonts/display.woff2) format('woff2'); }
   @font-face { font-family: UI; src: url(../fonts/ui.woff2) format('woff2'); font-weight: 500; }
   @font-face { font-family: UI; src: url(../fonts/ui-600.woff2) format('woff2'); font-weight: 600; }
+  :root { --w: 1920px; --h: 1080px; --red: #e2232f; }
+  .v { --w: 1080px; --h: 1920px; }
   html, body { margin: 0; background: #121111; }
-  .card { position: relative; overflow: hidden; width: 1920px; height: 1080px; color: #fff; }
-  .v .card { width: 1080px; height: 1920px; }
-  .bg { position: absolute; inset: 0; background: url(../assets/photos/waterfront-pool-home-lounge-chairs-van-selow.jpg) center 60% / cover; }
-  .shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(14,13,13,.95) 0%, rgba(14,13,13,.88) 40%, rgba(14,13,13,.35) 62%, rgba(14,13,13,0) 85%); }
-  .v .shade { background: linear-gradient(180deg, rgba(14,13,13,.75) 0%, rgba(14,13,13,.25) 22%, rgba(14,13,13,.2) 36%, rgba(14,13,13,.92) 56%, rgba(14,13,13,.97) 100%); }
-  .col { position: absolute; left: 110px; top: 100px; bottom: 96px; width: 820px; display: flex; flex-direction: column; }
-  .v .col { left: 80px; right: 80px; top: 1000px; bottom: 150px; width: auto; }
-  .logo { height: 260px; width: auto; align-self: flex-start; margin-left: -18px; }
-  .v .logo { height: 330px; position: absolute; top: -800px; left: 50%; transform: translateX(-50%); margin: 0; filter: drop-shadow(0 6px 30px rgba(0,0,0,.55)); }
-  .eyebrow { font: 600 26px/1 UI; letter-spacing: .32em; color: #e2232f; margin-top: 64px; }
-  .v .eyebrow { margin-top: 0; font-size: 28px; }
-  h1 { font: 400 98px/1.06 Display; margin: 24px 0 0; }
-  .v h1 { font-size: 100px; }
-  h1 span { color: #e2232f; }
-  .by { margin-top: auto; display: flex; align-items: center; gap: 22px; font: 500 28px/1 UI; color: #cfc9c1; letter-spacing: .02em; }
-  .by img { height: 50px; }
-  .rule { width: 64px; height: 3px; background: #e2232f; }
+  .card { position: relative; overflow: hidden; width: var(--w); height: var(--h); color: #fff; text-align: center; }
+  .bg { position: absolute; inset: 0; background: url(../assets/photos/waterfront-pool-home-lounge-chairs-van-selow.jpg) center 62% / cover; }
+  /* dark at the top for the logo, open in the middle for the house, deep at the bottom for the type */
+  .shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(14,13,13,.70) 0%, rgba(14,13,13,.18) 26%, rgba(14,13,13,.22) 42%, rgba(14,13,13,.86) 64%, rgba(14,13,13,.97) 100%); }
+  .v .shade { background: linear-gradient(180deg, rgba(14,13,13,.72) 0%, rgba(14,13,13,.2) 20%, rgba(14,13,13,.25) 36%, rgba(14,13,13,.9) 56%, rgba(14,13,13,.98) 100%); }
+  .logo { position: absolute; left: 50%; transform: translateX(-50%); top: 56px; height: 250px; filter: drop-shadow(0 6px 28px rgba(0,0,0,.6)); }
+  .v .logo { top: 150px; height: 330px; }
+  /* everything below is one block anchored to the bottom, so the spacing is set in one place */
+  .block { position: absolute; left: 0; right: 0; bottom: 84px; display: flex; flex-direction: column; align-items: center; }
+  .v .block { bottom: 260px; }
+  .eyebrow { font: 600 24px/1 UI; letter-spacing: .34em; color: rgba(255,255,255,.78); display: flex; align-items: center; gap: 22px; }
+  .eyebrow::before, .eyebrow::after { content: ''; width: 56px; height: 3px; background: var(--red); }
+  .v .eyebrow { font-size: 28px; }
+  h1 { font: 400 92px/1.08 Display; margin: 30px 0 0; text-shadow: 0 2px 24px rgba(0,0,0,.35); }
+  .v h1 { font-size: 104px; line-height: 1.06; }
+  .by { margin-top: 48px; display: flex; align-items: center; gap: 22px; font: 500 26px/1 UI; color: rgba(255,255,255,.8); }
+  .v .by { margin-top: 64px; font-size: 30px; }
+  .by img { height: 48px; }
+  .v .by img { height: 56px; }
 </style></head>
 <body>
 <div class="card">
   <div class="bg"></div><div class="shade"></div>
-  <div class="col">
-    <img class="logo" src="../assets/logo/shimmer/12.png">
+  <img class="logo" src="../assets/logo/shimmer/12.png">
+  <div class="block">
     <div class="eyebrow">THE NEW WEBSITE</div>
-    <h1>Your work is<br>world class.<br><span>Your website<br>should be too.</span></h1>
-    <div class="by"><div class="rule"></div>Designed &amp; built by <img src="../assets/wdm-logo.png"></div>
+    <h1 class="h16">Your work is world class.<br>Your website should be too.</h1>
+    <div class="by">Designed &amp; built by <img src="../assets/wdm-logo.png"></div>
   </div>
 </div>
-<script>if (location.search.includes('v')) document.documentElement.className = 'v';</script>
+<script>
+  if (location.search.includes('v')) {
+    document.documentElement.className = 'v';
+    document.querySelector('h1').innerHTML = 'Your work is<br>world class.<br>Your website<br>should be too.';
+  }
+</script>
 </body></html>
