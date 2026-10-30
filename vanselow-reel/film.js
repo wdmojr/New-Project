@@ -43,6 +43,7 @@ const CLIP = {
   form: { n: 225, w: 2160, h: 1350, k: 1.5 },
   map: { n: 210, w: 2160, h: 1350, k: 1.5 },
   mobile: { n: 180, w: 975, h: 2110, k: 2.5 },
+  logo: { n: 120, w: 2000, h: 1250, k: 4 },
 };
 const META = {};
 const cache = new Map();
@@ -112,8 +113,10 @@ function texQuad(ctx, img, src, corner, N = 48) {
     const cx = (c[0] + d[0] - (b[0] - a[0])) / 2, cy = (c[1] + d[1] - (b[1] - a[1])) / 2;
     ctx.save();
     ctx.transform(b[0] - a[0], b[1] - a[1], cx - a[0], cy - a[1], a[0], a[1]);
-    const ov = 0.8 / Math.max(1, Math.hypot(b[0] - a[0], b[1] - a[1]));
-    ctx.drawImage(img, sx + sw * u0, sy, sw / N, sh, 0, 0, 1 + ov, 1);
+    // overlap each strip by ~2 px (in source and destination alike) so no seam shows between them
+    const ov = Math.min(0.5, 2 / Math.max(1, Math.hypot(b[0] - a[0], b[1] - a[1])));
+    const ws = Math.min(sw / N * (1 + ov), sx + sw - (sx + sw * u0));
+    ctx.drawImage(img, sx + sw * u0, sy, ws, sh, 0, 0, ws / (sw / N), 1);
     ctx.restore();
   }
 }
@@ -132,7 +135,7 @@ function laptop(ctx, tex, { cx, cy, w, ry = 0, rx = 0.12, src }) {
   const dw = w, dh = w / 1.6;
   const lx = -bw / 2, ly = -bh;
   // base slab lies flat toward the viewer
-  const D = bw * 0.66, T = bw * 0.018, BW = bw * 1.1;
+  const D = bw * 0.66, T = bw * 0.018, BW = bw * 0.98;
   const quad = (pts) => pts.map(([x, y, z]) => pr(x, y, z));
   const base = quad([[-BW / 2, 0, 0], [BW / 2, 0, 0], [BW / 2, 0, D], [-BW / 2, 0, D]]);
   const lip = quad([[-BW / 2, 0, D], [BW / 2, 0, D], [BW / 2, T, D], [-BW / 2, T, D]]);
@@ -252,12 +255,14 @@ function sceneSite(ctx, u) {
   const tex = screenTex('scroll', (TS(u) - TS(10)) * 0.2, false);   // hero at rest, logo shimmer running
   const pb = E.inOutCubic(prog(u, 10, 13.5));
   const orbit = lerp(-14, 12, E.inOutSine(prog(u, 11, 19))) * deg;
-  const w = logLerp(W * 1.04, P ? 900 : 1180, pb);
-  const cy = lerp(H * 0.5 + (w / 1.6) * 0.57, P ? H * 0.52 : H * 0.84, pb);
-  laptop(ctx, tex, { cx: W / 2, cy, w, ry: lerp(0, orbit, pb), rx: lerp(0, 0.12, pb) });
-  if (u < 15) superBlock(ctx, u, 10.6, '', P ? ['Your website', 'should be', 'world class too.'] : ['Your website should be', 'world class too.'], S.x, P ? H * 0.1 : 70,
+  const w = logLerp(W * 1.04, P ? 900 : 1060, pb);
+  const cy = lerp(H * 0.5 + (w / 1.6) * 0.57, P ? H * 0.52 : H * 0.8, pb);
+  const cx = lerp(W / 2, P ? W / 2 : W * 0.63, pb);
+  laptop(ctx, tex, { cx, cy, w, ry: lerp(0, orbit, pb), rx: lerp(0, 0.12, pb) });
+  const ty = P ? H * 0.1 : H * 0.34;
+  if (u < 15) superBlock(ctx, u, 10.8, '', P ? ['Your website', 'should be', 'world class too.'] : ['Your website', 'should be', 'world class', 'too.'], S.x, ty,
     { size: FORMAT.pick({ '16x9': 84, '9x16': 92 }), out: 14.4 });
-  else superBlock(ctx, u, 15.2, 'VAN SELOW DESIGN BUILD', ['Every detail,', 'considered.'], S.x, P ? H * 0.1 : 70,
+  else superBlock(ctx, u, 15.2, 'VAN SELOW DESIGN BUILD', ['Every detail,', 'considered.'], S.x, ty,
     { size: FORMAT.pick({ '16x9': 84, '9x16': 96 }), out: 18.5 });
 }
 
@@ -266,11 +271,11 @@ function sceneLogoScroll(ctx, u) {
   fill(ctx, C.coal);
   if (u < 23) {
     // macro: the header logo filling the frame, crimson shimmer moving (page at rest)
-    const tex = screenTex('scroll', Math.min(0.75, 0.3 + (TS(u) - TS(19)) * 0.2), false);
+    const tex = frame('logo', (TS(u) - TS(19)) * 1.4);
     if (!tex) return;
-    const z = logLerp(1, 1.12, prog(u, 19, 23));
-    const lw = (P ? 330 : 600) / z, lh = lw * H / W;
-    M.crop(ctx, tex, [1080 - lw / 2, 160 - lh * 0.47, lw, lh], 0, 0, W, H);
+    const z = logLerp(1, 1.15, prog(u, 19, 23));
+    const lw = (P ? 640 : 1500) / z, lh = lw * H / W;
+    M.crop(ctx, tex, [1000 - lw / 2, 470 - lh / 2, lw, lh], 0, 0, W, H);
     const v = ctx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, H * 0.95);
     v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.5)');
     ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
@@ -280,10 +285,10 @@ function sceneLogoScroll(ctx, u) {
   // the scroll: big logo hands off to the slim sticky bar; camera starts close on the header, pulls out
   const tex = screenTex('scroll', 0.7 + (TS(u) - TS(23)) * 1.15, false);
   const k = E.inOutCubic(prog(u, 23.5, 28));
-  const w = logLerp(P ? 2400 : 2700, P ? 980 : 1240, k);
-  const cy = lerp(H * 0.5 + (w / 1.6) * 0.86, P ? H * 0.45 : H * 0.84, k);
-  laptop(ctx, tex, { cx: W / 2, cy, w, ry: lerp(0, -8 * deg, k), rx: lerp(0, 0.1, k) });
-  superBlock(ctx, u, 26, 'STICKY HEADER', ['The logo glides', 'into a slim bar.'], S.x, P ? H * 0.72 : 70,
+  const w = logLerp(P ? 2400 : 2700, P ? 980 : 1060, k);
+  const cy = lerp(H * 0.5 + (w / 1.6) * 0.86, P ? H * 0.6 : H * 0.8, k);
+  laptop(ctx, tex, { cx: lerp(W / 2, P ? W / 2 : W * 0.63, k), cy, w, ry: lerp(0, -10 * deg, k), rx: lerp(0, 0.1, k) });
+  superBlock(ctx, u, 26, 'STICKY HEADER', ['The logo glides', 'into a slim bar.'], S.x, P ? H * 0.74 : H * 0.36,
     { size: FORMAT.pick({ '16x9': 76, '9x16': 84 }), out: 30.5 });
 }
 
@@ -292,15 +297,15 @@ function sceneClip(ctx, u, name, u0, u1, ct0, ct1, focus, eyebrow, lines, side) 
   fill(ctx, C.coal);
   const tex = screenTex(name, lerp(ct0, ct1, prog(u, u0, u1)), true);
   const t = E.inOutSine(prog(u, u0, u1));
-  const enter = springU(u, u0 - 0.4, SPRING.gentle);
-  const w = (P ? 1000 : 1260) * logLerp(1, P ? 1.3 : 1.14, t);
+  const enter = springU(u, u0, SPRING.gentle);
+  const w = (P ? 940 : 1060) * logLerp(1, P ? 1.12 : 1.1, t);
   const dir = side === 'left' ? 1 : -1;
-  const ry = dir * lerp(16, 8, t) * deg * (P ? 0.4 : 1);
-  const cx = (P ? W / 2 : W / 2 + dir * 140) - (focus[0] - 0.5) * w * 0.3 * t;
-  const cy = (P ? H * 0.47 : H * 0.88) - (focus[1] - 0.5) * (w / 1.6) * 0.3 * t + (1 - enter) * H * 0.6;
-  laptop(ctx, tex, { cx, cy, w, ry, rx: 0.1 });
+  const ry = -dir * lerp(16, 9, t) * deg * (P ? 0.4 : 1);
+  const cx = (P ? W / 2 : W / 2 + dir * 250) - (focus[0] - 0.5) * w * (P ? 0.3 : 0.12) * t + (1 - enter) * dir * 120;
+  const cy = (P ? H * 0.6 : H * 0.8) - (focus[1] - 0.5) * (w / 1.6) * 0.2 * t;
+  laptop(ctx, tex, { cx, cy, w, ry, rx: 0.1, src: name === 'map' ? [300, 115, 1560, 975] : undefined });
   const al = P ? 'left' : side === 'left' ? 'left' : 'right';
-  superBlock(ctx, u, u0 + 0.4, eyebrow, lines, P ? S.x : al === 'left' ? S.x : W - S.x, P ? H * 0.7 : 70,
+  superBlock(ctx, u, u0 + 0.4, eyebrow, lines, P ? S.x : al === 'left' ? S.x : W - S.x, P ? H * 0.72 : H * 0.36,
     { size: FORMAT.pick({ '16x9': 76, '9x16': 88 }), out: u1 - 0.6, align: al });
 }
 
@@ -332,9 +337,8 @@ function sceneCraft(ctx, u, IMG) {
   scrim(ctx, 0.3, 0.9);
   const y = P ? H * 0.56 : H * 0.5;
   const big = FORMAT.pick({ '16x9': 120, '9x16': 108 });
-  superBlock(ctx, u, 56.4, 'WORK WITH SOMEONE WHO TAKES', [], S.x, y, { out: 63 });
   superBlock(ctx, u, 57, '', ['The same care.'], S.x, y + 40, { size: big, out: 63.05 });
-  superBlock(ctx, u, 59.5, '', ['The same precision.'], S.x, y + 40 + big * 1.08, { size: big, color: C.red, out: 63.1 });
+  superBlock(ctx, u, 59.5, '', ['The same precision.'], S.x, y + 40 + big * 1.08, { size: big, out: 63.1 });
 }
 
 // ---------------------------------------------------------------- I. end card   (u 63.5..76)
@@ -362,9 +366,9 @@ function draw(ctx, u, t, IMG) {
   if (u < 10) sceneWork(ctx, u, IMG);
   else if (u < 19) sceneSite(ctx, u);
   else if (u < 31) sceneLogoScroll(ctx, u);
-  else if (u < 38) sceneClip(ctx, u, 'menu', 31, 38, 0.2, 5.0, [0.35, 0.3], 'MEGA MENU', ['Their whole world,', 'one hover away.'], 'right');
+  else if (u < 38) sceneClip(ctx, u, 'menu', 31, 38, 0.2, 5.0, [0.35, 0.3], 'MEGA MENU', P ? ['Their whole world,', 'one hover away.'] : ['Their whole', 'world, one', 'hover away.'], 'right');
   else if (u < 45) sceneClip(ctx, u, 'form', 38, 45, 1.3, 7.4, [0.6, 0.45], 'CUSTOM QUOTE FORM', ['Qualifies', 'every lead.'], 'left');
-  else if (u < 51.5) sceneClip(ctx, u, 'map', 45, 51.5, 1.4, 7.0, [0.35, 0.6], 'INTERACTIVE MAP', ['Every community', 'they serve.'], 'right');
+  else if (u < 51.5) sceneClip(ctx, u, 'map', 45, 51.5, 1.4, 7.0, [0.35, 0.6], 'INTERACTIVE MAP', P ? ['Every community', 'they serve.'] : ['Every', 'community', 'they serve.'], 'right');
   else if (u < 56) sceneSpeed(ctx, u);
   else if (u < 63.5) sceneCraft(ctx, u, IMG);
   else sceneEnd(ctx, u, IMG);

@@ -44,6 +44,11 @@ async function record(name, { p, cdp }, dur, step, clip) {
 }
 
 const CLIPS = {
+  // macro of the header logo at 4x, page at rest: the crimson shimmer sweeping the S
+  async logo(S) {
+    await S.p.evaluate(() => scrollTo(0, 0)); await S.p.mouse.move(700, 700);
+    await record('logo', S, 4, async () => ({}), { x: 486, y: 0, width: 500, height: 312.5 });
+  },
   // the page settling, then a slow scroll: the big VS logo hands off to the slim sticky bar
   async scroll(S) {
     await S.p.evaluate(() => scrollTo(0, 0));
@@ -135,7 +140,7 @@ const CLIPS = {
   const which = process.argv[2] || 'all';
   const names = which === 'all' ? Object.keys(CLIPS) : which.split(',');
   for (const n of names) {
-    const S = n === 'mobile' ? await session({ width: 390, height: 844 }, 2.5, true) : await session({ width: 1440, height: 900 }, 1.5);
+    const S = n === 'mobile' ? await session({ width: 390, height: 844 }, 2.5, true) : await session({ width: 1440, height: 900 }, n === 'logo' ? 4 : 1.5);
     try { await CLIPS[n](S); } catch (e) { console.error(n, 'FAILED', e.message); }
     await S.b.close();
   }
