@@ -253,14 +253,14 @@ function sceneWork(ctx, u, IMG) {
 function sceneSite(ctx, u) {
   fill(ctx, C.coal);
   const tex = screenTex('scroll', (TS(u) - TS(10)) * 0.2, false);   // hero at rest, logo shimmer running
-  const pb = E.inOutCubic(prog(u, 10, 13.5));
+  const pb = E.inOutCubic(prog(u, 10, 12.4));
   const orbit = lerp(-14, 12, E.inOutSine(prog(u, 11, 19))) * deg;
   const w = logLerp(W * 1.04, P ? 900 : 1060, pb);
   const cy = lerp(H * 0.5 + (w / 1.6) * 0.57, P ? H * 0.52 : H * 0.8, pb);
   const cx = lerp(W / 2, P ? W / 2 : W * 0.63, pb);
   laptop(ctx, tex, { cx, cy, w, ry: lerp(0, orbit, pb), rx: lerp(0, 0.12, pb) });
   const ty = P ? H * 0.1 : H * 0.34;
-  if (u < 15) superBlock(ctx, u, 10.8, '', P ? ['Your website', 'should be too.'] : ['Your website', 'should be too.'], S.x, ty,
+  if (u < 15) superBlock(ctx, u, 11.9, '', P ? ['Your website', 'should be too.'] : ['Your website', 'should be too.'], S.x, ty,
     { size: FORMAT.pick({ '16x9': 84, '9x16': 92 }), out: 14.4 });
   else superBlock(ctx, u, 15.2, 'VAN SELOW DESIGN BUILD', ['Every detail,', 'considered.'], S.x, ty,
     { size: FORMAT.pick({ '16x9': 84, '9x16': 96 }), out: 18.5 });
