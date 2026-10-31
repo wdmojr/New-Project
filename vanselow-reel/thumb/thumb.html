@@ -1,0 +1,46 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+  @font-face { font-family: Display; src: url(../fonts/display.woff2) format('woff2'); }
+  @font-face { font-family: UI; src: url(../fonts/ui.woff2) format('woff2'); font-weight: 500; }
+  @font-face { font-family: UI; src: url(../fonts/ui-600.woff2) format('woff2'); font-weight: 600; }
+  :root { --w: 1920px; --h: 1080px; --red: #e2232f; }
+  .v { --w: 1080px; --h: 1920px; }
+  html, body { margin: 0; background: #121111; }
+  .card { position: relative; overflow: hidden; width: var(--w); height: var(--h); color: #fff; text-align: center; }
+  .bg { position: absolute; inset: 0; background: url(../assets/photos/waterfront-pool-home-lounge-chairs-van-selow.jpg) center 62% / cover; }
+  /* dark at the top for the logo, open in the middle for the house, deep at the bottom for the type */
+  .shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(14,13,13,.70) 0%, rgba(14,13,13,.18) 26%, rgba(14,13,13,.22) 42%, rgba(14,13,13,.86) 64%, rgba(14,13,13,.97) 100%); }
+  .v .shade { background: linear-gradient(180deg, rgba(14,13,13,.72) 0%, rgba(14,13,13,.2) 20%, rgba(14,13,13,.25) 36%, rgba(14,13,13,.9) 56%, rgba(14,13,13,.98) 100%); }
+  .logo { position: absolute; left: 50%; transform: translateX(-50%); top: 56px; height: 250px; filter: drop-shadow(0 6px 28px rgba(0,0,0,.6)); }
+  .v .logo { top: 150px; height: 330px; }
+  /* everything below is one block anchored to the bottom, so the spacing is set in one place */
+  .block { position: absolute; left: 0; right: 0; bottom: 84px; display: flex; flex-direction: column; align-items: center; }
+  .v .block { bottom: 260px; }
+  .eyebrow { font: 600 24px/1 UI; letter-spacing: .34em; color: rgba(255,255,255,.78); display: flex; align-items: center; gap: 22px; }
+  .eyebrow::before, .eyebrow::after { content: ''; width: 56px; height: 3px; background: var(--red); }
+  .v .eyebrow { font-size: 28px; }
+  h1 { font: 400 92px/1.08 Display; margin: 30px 0 0; text-shadow: 0 2px 24px rgba(0,0,0,.35); }
+  .v h1 { font-size: 104px; line-height: 1.06; }
+  .by { margin-top: 48px; display: flex; align-items: center; gap: 22px; font: 500 26px/1 UI; color: rgba(255,255,255,.8); }
+  .v .by { margin-top: 64px; font-size: 30px; }
+  .by img { height: 48px; }
+  .v .by img { height: 56px; }
+</style></head>
+<body>
+<div class="card">
+  <div class="bg"></div><div class="shade"></div>
+  <img class="logo" src="../assets/logo/shimmer/12.png">
+  <div class="block">
+    <div class="eyebrow">THE NEW WEBSITE</div>
+    <h1 class="h16">Your work is world class.<br>Your website should be too.</h1>
+    <div class="by">Designed &amp; built by <img src="../assets/wdm-logo.png"></div>
+  </div>
+</div>
+<script>
+  if (location.search.includes('v')) {
+    document.documentElement.className = 'v';
+    document.querySelector('h1').innerHTML = 'Your work is<br>world class.<br>Your website<br>should be too.';
+  }
+</script>
+</body></html>
