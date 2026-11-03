@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Van Selow Design Build | Every remodel starts as a drawing</title>
+  <meta name="description" content="Van Selow Design Build, Seminole, Florida. Award-winning design-build remodeling in Pinellas County. Scroll from the floor plan into the finished home.">
+  <link rel="icon" href="data:,">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lenis@1.1.14/dist/lenis.css">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="gl" aria-hidden="true"></canvas>
+  <div id="grain" aria-hidden="true"></div>
+
+  <header id="bar">
+    <a class="mark" href="https://vanselowdesign.com">Van Selow <span>Design Build</span></a>
+    <span id="hud" class="chip" aria-hidden="true">
+      <span>LENS <b id="hud-lens">2.0°</b></span>
+      <span>HEIGHT <b id="hud-height">5 640 ft</b></span>
+      <span>CUT <b id="hud-cut">+4'-0"</b></span>
+    </span>
+  </header>
+
+  <section id="hero" class="overlay">
+    <p class="eyebrow">Seminole, Florida <span class="wide">&nbsp;·&nbsp; Whole-home remodel</span> &nbsp;·&nbsp; A-101</p>
+    <h1><span class="l"><span>Every remodel</span></span><span class="l"><span>starts as <em>a drawing.</em></span></span></h1>
+    <p class="lede"><span class="wide">Designed and built by one team, since 2004. </span>This plan is the house. Scroll and walk in.</p>
+    <p class="cue"><i></i> Scroll</p>
+  </section>
+
+  <aside id="cap-lift" class="overlay cap">
+    <p class="no">02 &nbsp; Design</p>
+    <p class="say">The plan was never a picture. It is the house, cut at four feet. The same team that drew it builds it. Now the walls go up.</p>
+  </aside>
+
+  <aside id="cap-fore" class="overlay cap">
+    <p class="no">03 &nbsp; Arrival</p>
+    <p class="say">Twenty-six feet to the front door. Everything ahead is still ink.</p>
+  </aside>
+
+  <aside id="cap-hall" class="overlay cap">
+    <p class="no">04 &nbsp; Foyer &nbsp; 13'-1" × 23'-0"</p>
+    <p class="say">White oak, marble, brass. Each room stays a drawing until you step into it.</p>
+  </aside>
+
+  <aside id="cap-living" class="overlay cap">
+    <p class="no">05 &nbsp; Great room &nbsp; 39'-4" × 36'-1"</p>
+    <p class="say">A sixteen-foot ceiling, cypress beams, and a wall of impact glass facing the Gulf light.</p>
+  </aside>
+
+  <aside id="cap-kitchen" class="overlay cap">
+    <p class="no">06 &nbsp; Kitchen &nbsp; 39'-4" × 32'-10"</p>
+    <p class="say">White shaker, a navy island in quartz, brass at every pull. Seats four at the counter and eight at the table.</p>
+  </aside>
+
+  <aside id="cap-court" class="overlay cap">
+    <p class="no">07 &nbsp; Lanai &amp; pool</p>
+    <p class="say">Sliders open the kitchen to a covered lanai, an outdoor kitchen and a screened pool, built to flood-zone code.</p>
+  </aside>
+
+  <section id="cta" class="overlay">
+    <p class="no">08 &nbsp; From vision to dream home</p>
+    <h2>Let's build something <em>beautiful.</em></h2>
+    <p class="creds">NARI Remodeler of the Year 2025 &nbsp;·&nbsp; Best of Florida 2025 &nbsp;·&nbsp; Best of Houzz</p>
+    <div class="actions">
+      <a class="btn" href="https://vanselowdesign.com/contact/">Schedule a consultation</a>
+      <a class="tel" href="tel:+17276282219">727-628-2219</a>
+    </div>
+    <p class="fine">Van Selow Design Build &nbsp;·&nbsp; 7220 118th St N, Seminole, FL 33772 &nbsp;·&nbsp; Lic. CBC1252610</p>
+  </section>
+
+  <nav id="rail" aria-hidden="true">
+    <span data-at="0">01 Plan</span>
+    <span data-at="0.04">02 Design</span>
+    <span data-at="0.32">03 Arrival</span>
+    <span data-at="0.43">04 Foyer</span>
+    <span data-at="0.52">05 Great room</span>
+    <span data-at="0.69">06 Kitchen</span>
+    <span data-at="0.86">07 Lanai</span>
+    <span data-at="0.965">08 Contact</span>
+  </nav>
+
+  <div id="loading"><span>Drawing the plan</span></div>
+
+  <main id="track"></main>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.14/dist/lenis.min.js"></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
