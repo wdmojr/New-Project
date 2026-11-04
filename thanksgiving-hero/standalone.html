@@ -721,7 +721,7 @@
   for (let i = 0; i < 40; i++) motes.push({ x: SUN.x + R(-520, 520), y: R(420, 820), r: R(0.8, 2.4), ph: R(0, TAU), sp: R(4, 14) });
 
   // ---------- interaction state ----------
-  let t = 0, last = performance.now(), wind = 0.4, gust = 0, nextGust = 9, millRot = 0, fade = 0;
+  let t = 0, last = performance.now(), wind = 0.4, gust = 0, nextGust = 9, millRot = 0, flagPh = 0, fade = 0;
   const par = { x: 0, y: 0, tx: 0, ty: 0 };
   const ptr = { x: -9999, y: -9999, vx: 0, vy: 0, active: false, lastMove: -99 };
   const toVirtual = (cx, cy, depth = 1) => {
@@ -801,8 +801,9 @@
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, TAU); ctx.fill();
     }
     // flag
-    const px = 1262, py = HOUSE.base - 110, fw = 31, fh = 17, N = 12, amp = 2.2 + wind * 1.6;
-    const P = (u, v) => [px - u * fw * (1 - 0.05 * u * (1 - wind * 0.3)), py + v * fh + Math.sin(u * 5.6 - t * (4.6 + wind * 3)) * amp * u + u * u * (5 - wind * 3)];
+    const px = 1262, py = HOUSE.base - 110, fw = 31, fh = 17, N = 12, amp = 1.6 + wind * 0.6;
+    flagPh += dt * (1.9 + wind * 0.5);
+    const P = (u, v) => [px - u * fw * (1 - 0.05 * u * (1 - wind * 0.3)), py + v * fh + Math.sin(u * 4.2 - flagPh) * amp * u + u * u * (5 - wind * 3)];
     for (let s = 0; s < 13; s++) {
       ctx.beginPath();
       for (let i = 0; i <= N; i++) { const p = P(i / N, s / 13); i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); }
@@ -816,7 +817,7 @@
     ctx.fillStyle = 'rgba(255,250,235,.85)';
     for (let r = 0; r < 3; r++) for (let cc = 0; cc < 4; cc++) { const p = P(0.05 + cc * 0.1, 0.07 + r * 0.17); ctx.fillRect(p[0] - 0.6, p[1] - 0.6, 1.2, 1.2); }
     for (let i = 0; i < N; i++) {
-      const u = i / N, sl = Math.cos(u * 5.6 - t * (4.6 + wind * 3));
+      const u = i / N, sl = Math.cos(u * 4.2 - flagPh);
       const a = P(u, 0), b = P(u + 1 / N, 0), c2 = P(u + 1 / N, 1), d = P(u, 1);
       ctx.fillStyle = sl > 0 ? `rgba(255,236,200,${0.16 * sl * u})` : `rgba(30,10,20,${-0.25 * sl * u})`;
       poly(ctx, [a, b, c2, d]); ctx.fill();
