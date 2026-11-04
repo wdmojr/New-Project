@@ -56,7 +56,7 @@
   }
 
   .copy {
-    align-self: center; max-width: 36rem;
+    align-self: center; max-width: 34rem;
     padding-inline: clamp(0px, 3vw, 48px);
     display: grid; gap: 1.25rem;
     animation: rise 1.6s cubic-bezier(.2,.7,.2,1) .5s both;
@@ -99,6 +99,32 @@
     font-size: .68rem; letter-spacing: .22em; text-transform: uppercase; color: var(--cream); opacity: .62;
     animation: rise 1.4s ease 2.2s both;
   }
+  /* Sample lead form: stands in for the site's real form so the composition can be checked. */
+  .lead {
+    position: absolute; z-index: 2; top: 50%; transform: translateY(-46%);
+    right: max(16px, calc(env(safe-area-inset-right, 0px) + 4vw));
+    width: min(380px, 30vw);
+    display: grid; gap: .9rem; padding: 1.6rem 1.5rem 1.5rem;
+    background: rgba(24,15,28,.72); border: 1px solid rgba(232,184,100,.35);
+    -webkit-backdrop-filter: blur(10px) saturate(1.1); backdrop-filter: blur(10px) saturate(1.1);
+    box-shadow: 0 30px 60px -30px rgba(0,0,0,.7);
+    color: var(--cream); cursor: auto;
+  }
+  .lead h2 { margin: 0 0 .2rem; font-family: var(--display); font-weight: 500; font-size: 1.7rem; line-height: 1.1; }
+  .lead label { display: grid; gap: .35rem; font-size: .66rem; letter-spacing: .2em; text-transform: uppercase; color: var(--gilt); }
+  .lead input, .lead textarea {
+    font: inherit; font-size: .95rem; letter-spacing: 0; text-transform: none; color: var(--cream);
+    background: rgba(247,234,209,.06); border: 1px solid rgba(247,234,209,.22); padding: .7rem .8rem; border-radius: 0;
+  }
+  .lead textarea { min-height: 4.6rem; resize: vertical; }
+  .lead input:focus-visible, .lead textarea:focus-visible { outline: 2px solid var(--gilt); outline-offset: 1px; }
+  .lead .btn { justify-content: center; cursor: pointer; font-family: var(--ui); }
+  .lead .note { margin: 0; font-size: .78rem; color: var(--cream); opacity: .75; }
+  @media (max-width: 1099px) {
+    .lead { position: static; transform: none; width: auto; max-width: 30rem; margin: 0 auto; background: var(--plum); }
+    .lead-wrap { background: var(--ink); padding: 2rem max(16px, env(safe-area-inset-right, 0px)) 2.5rem max(16px, env(safe-area-inset-left, 0px)); }
+  }
+  @media (min-width: 1100px) { .lead-wrap { position: absolute; inset: 0; pointer-events: none; } .lead { pointer-events: auto; } .stage { position: relative; height: 100%; } }
   @keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
 
   @media (max-width: 760px) {
@@ -112,6 +138,7 @@
   @media (prefers-reduced-motion: reduce) { .copy, .hint { animation: none; } }
 </style>
 
+<div class="stage">
 <section class="hero" id="hero" aria-label="Happy Thanksgiving from WD Morgan">
   <canvas id="scene" aria-hidden="true"></canvas>
   <div class="glaze" aria-hidden="true"></div>
@@ -133,6 +160,18 @@
 
   <p class="hint"><span class="desk">Move to look around · Click anywhere for a breeze</span><span class="touch">Drag to look around · Tap for a breeze</span></p>
 </section>
+<!-- Sample form: replace with the site's real form. The painting keeps the sun and farm clear of this right-hand column. -->
+<div class="lead-wrap">
+  <form class="lead" id="lead">
+    <h2>Start next season's project</h2>
+    <label for="lead-name">Name<input id="lead-name" name="name" autocomplete="name" required></label>
+    <label for="lead-email">Email<input id="lead-email" name="email" type="email" autocomplete="email" required></label>
+    <label for="lead-msg">What are you planning?<textarea id="lead-msg" name="message"></textarea></label>
+    <button class="btn" type="submit">Request a consultation</button>
+    <p class="note" id="lead-note" hidden>Sample form only. Connect your site's form here.</p>
+  </form>
+</div>
+</div>
 
 <script>
 (() => {
@@ -145,7 +184,8 @@
   // ---------- virtual canvas & helpers ----------
   const VW = 1920, VH = 1080, M = 80, LW = VW + 2 * M, LH = VH + 2 * M;
   const X0 = -M, X1 = VW + M, Y0 = -M, YB = VH + M, TAU = Math.PI * 2, PI = Math.PI;
-  const SUN = { x: 1180, y: 572 };
+  const FX = -360; // farmstead shift: keeps sun, house and barn clear of the form column
+  const SUN = { x: 880, y: 572 };
   let seed = 20261126;
   const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   const R = (a, b) => a + (b - a) * rnd();
@@ -159,12 +199,12 @@
   // terrain
   const farA = (x) => 598 + 20 * Math.sin(x * 0.0021 + 1.0) + 11 * Math.sin(x * 0.0057 + 2.1) + 5 * Math.sin(x * 0.013 + 0.4);
   const farB = (x) => 642 + 24 * Math.sin(x * 0.0016 + 3.0) + 13 * Math.sin(x * 0.0047 + 0.7) + 6 * Math.sin(x * 0.011 + 1.9);
-  const midR = (x) => 712 - 80 * Math.exp(-(((x - 470) / 430) ** 2)) - 92 * Math.exp(-(((x - 1340) / 360) ** 2)) + 9 * Math.sin(x * 0.0042 + 1.3);
+  const midR = (x) => 712 - 80 * Math.exp(-(((x - 300) / 380) ** 2)) - 92 * Math.exp(-(((x - 980) / 360) ** 2)) + 9 * Math.sin(x * 0.0042 + 1.3);
   const nearR = (x) => 792 + 26 * Math.sin(x * 0.0021 + 0.4) + 14 * Math.sin(x * 0.0063 + 2.2);
   const bankY = (x) => 905 + 0.00028 * (x + M) ** 2 + 14 * Math.sin(x * 0.018);
   const groundR = (x) => 1000 - (x - 1100) * 0.035 + 8 * Math.sin(x * 0.021);
   const roadT = (y) => clamp((y - 786) / (YB - 786), 0, 1);
-  const roadC = (y) => { const t = roadT(y); return 1300 + (980 - 1300) * Math.pow(t, 0.85) + 40 * Math.sin(t * 3.2); };
+  const roadC = (y) => { const t = roadT(y); return 940 + (700 - 940) * Math.pow(t, 0.85) + 40 * Math.sin(t * 3.2); };
   const roadW = (y) => 5 + 120 * Math.pow(roadT(y), 1.4);
 
   function ridgePath(c, fn, x0 = X0, x1 = X1, yb = YB, step = 8) {
@@ -245,7 +285,7 @@
     c.fillStyle = '#ffd47a'; c.fillRect(429, b - 18, 4, 7); c.fillRect(447, b - 18, 4, 7);
   }
 
-  const MIDTREES = [[120, 34, 26, 0], [262, 14, 30, 1], [372, 44, 22, 2], [612, 16, 28, 3], [700, 52, 24, 0], [826, 24, 30, 2], [986, 30, 26, 5], [1066, 64, 22, 1], [1150, 16, 19, 4], [1240, 70, 18, 0], [1700, 44, 30, 3], [1790, 22, 26, 2], [1905, 54, 28, 1], [-40, 60, 26, 2]];
+  const MIDTREES = [[120, 34, 26, 0], [262, 14, 30, 1], [372, 44, 22, 2], [612, 16, 28, 3], [700, 52, 24, 0], [770, 34, 30, 2], [1330, 30, 26, 5], [1420, 60, 22, 1], [1520, 20, 19, 4], [1600, 66, 18, 0], [1700, 44, 30, 3], [1790, 22, 26, 2], [1905, 54, 28, 1], [-40, 60, 26, 2]];
   const TREECOL = ['#b9592a', '#93352b', '#c8933c', '#a4462c', '#3f4a36', '#b06f30'];
   function drawMid(c) {
     ridgePath(c, midR); c.fillStyle = '#8a5a30'; c.fill();
@@ -272,7 +312,7 @@
     c.restore();
     c.lineWidth = 4; ridgeLine(c, midR); c.strokeStyle = sunGrad(c, 0, 0, 1); c.stroke();
     // small road to the farmhouse
-    const rp = []; for (let i = 0; i <= 12; i++) { const t = i / 12; rp.push([lerp(1292, 1336, t * t), lerp(810, 630, t), lerp(11, 2, t)]); }
+    const rp = []; for (let i = 0; i <= 12; i++) { const t = i / 12; rp.push([lerp(1292 + FX, 1336 + FX, t * t), lerp(810, 630, t), lerp(11, 2, t)]); }
     c.beginPath(); rp.forEach(([x, y, w], i) => (i ? c.lineTo(x - w, y) : c.moveTo(x - w, y))); for (let i = rp.length - 1; i >= 0; i--) c.lineTo(rp[i][0] + rp[i][2], rp[i][1]);
     c.closePath(); c.fillStyle = '#d6a670'; c.fill();
     MIDTREES.forEach(([x, off, r, ci]) => lolli(c, x, midR(x) + off * 0.8, r * 0.78, TREECOL[ci]));
@@ -292,10 +332,10 @@
   }
 
   // farm buildings (separate fine-brush layer)
-  const HOUSE = { base: midR(1340) + 3 };
-  const BARN = { base: midR(1535) + 4 };
-  const SILO = { base: midR(1643) + 4 };
-  const MILL = { x: 1452, base: midR(1452) + 3, top: 0 };
+  const HOUSE = { base: midR(1340 + FX) + 3 };
+  const BARN = { base: midR(1475 + FX) + 4 };
+  const SILO = { base: midR(1583 + FX) + 4 };
+  const MILL = { x: 1452, base: midR(1452 + FX) + 3, top: 0 };
   MILL.top = MILL.base - 124;
   const WINDOWS = [];
   function win(c, x, y, w, h) {
@@ -305,6 +345,7 @@
     WINDOWS.push([x + w / 2, y + h / 2, Math.max(w, h)]);
   }
   function drawFarm(c) {
+    c.save(); c.translate(FX, 0);
     const b = HOUSE.base;
     // flagpole
     c.strokeStyle = '#e9e0d2'; c.lineWidth = 2; c.beginPath(); c.moveTo(1262, b + 2); c.lineTo(1262, b - 112); c.stroke();
@@ -344,6 +385,8 @@
     for (let i = 0; i < 6; i++) { const t0 = i / 6, t1 = (i + 1) / 6; const y0 = lerp(mb, mt + 8, t0), y1 = lerp(mb, mt + 8, t1); const w0 = lerp(13, 3, t0), w1 = lerp(13, 3, t1); c.beginPath(); c.moveTo(mx - w0, y0); c.lineTo(mx + w1, y1); c.moveTo(mx + w0, y0); c.lineTo(mx - w1, y1); c.moveTo(mx - w1, y1); c.lineTo(mx + w1, y1); c.stroke(); }
     c.strokeStyle = 'rgba(255,210,140,.8)'; c.beginPath(); c.moveTo(mx - 13, mb); c.lineTo(mx - 3, mt + 8); c.stroke();
     c.fillStyle = '#3b2d3b'; poly(c, [[mx + 2, mt - 3], [mx + 30, mt - 8], [mx + 34, mt + 6], [mx + 2, mt + 3]]); c.fill();
+    // barn group sits a little closer to the house
+    c.save(); c.translate(-60, 0);
     // haystack
     c.fillStyle = '#c99640'; c.beginPath(); c.ellipse(1470, BARN.base - 4, 20, 16, 0, PI, TAU); c.fill();
     c.fillStyle = '#f2c46c'; c.beginPath(); c.ellipse(1464, BARN.base - 10, 9, 8, 0, PI, TAU); c.fill();
@@ -368,6 +411,7 @@
     c.fillStyle = '#5a5466'; c.beginPath(); c.ellipse((sx0 + sx1) / 2, bb - 96, 13, 13, 0, PI, TAU); c.fill();
     c.strokeStyle = 'rgba(255,214,150,.85)'; c.lineWidth = 1.5; c.beginPath(); c.ellipse((sx0 + sx1) / 2, bb - 96, 13, 13, 0, PI, PI * 1.45); c.stroke();
     c.strokeStyle = 'rgba(60,50,70,.5)'; c.lineWidth = 1; for (let y = bb - 84; y < sb; y += 12) { c.beginPath(); c.moveTo(sx0, y); c.lineTo(sx1, y); c.stroke(); }
+    c.restore(); c.restore();
   }
 
   function drawNear(c) {
@@ -385,7 +429,7 @@
       poly(c, [[VP.x, VP.y], [bx - w, YB + 40], [bx + w, YB + 40]]); c.fill();
     }
     for (let k = 0; k < 80; k++) {
-      const y = R(806, 900), x = R(760, 1200), r = 1.6 + (y - 790) * 0.045;
+      const y = R(806, 900), x = R(480, 900), r = 1.6 + (y - 790) * 0.045;
       if (Math.abs(x - roadC(y)) < roadW(y) + 6) continue;
       c.fillStyle = '#d96b1e'; c.beginPath(); c.ellipse(x, y, r * 1.2, r, 0, 0, TAU); c.fill();
       c.fillStyle = '#ffb45a'; c.beginPath(); c.ellipse(x - r * 0.2, y - r * 0.35, r * 0.6, r * 0.4, 0, 0, TAU); c.fill();
@@ -543,7 +587,7 @@
     { id: 'mid', depth: 0.22, draw: drawMid, bbox: [X0, 560, LW, YB - 560], mask: true, cj: 16, jit: 0.22, edge: 26,
       passes: [{ s: 18, len: 3, cov: 1 }, { s: 9, len: 2.8, cov: 0.8 }, { s: 4.5, len: 2.4, cov: 0.5, detail: 40 }],
       flow: (x, y) => Math.atan((midR(x + 5) - midR(x - 5)) / 10) * (1 - clamp((y - midR(x)) / 300, 0, 1)) },
-    { id: 'farm', depth: 0.22, draw: drawFarm, bbox: [1180, 470, 520, 230], mask: true, cj: 10, jit: 0.08, edge: 16,
+    { id: 'farm', depth: 0.22, draw: drawFarm, bbox: [1180 + FX, 470, 470, 230], mask: true, cj: 10, jit: 0.08, edge: 16,
       passes: [{ s: 3.6, len: 2.2, cov: 1 }, { s: 2, len: 2, cov: 0.6, detail: 30 }], flow: () => (rnd() < 0.5 ? 0 : PI / 2) },
     { id: 'near', depth: 0.42, draw: drawNear, bbox: [X0, 740, LW, YB - 740], mask: true, cj: 18, jit: 0.25, edge: 30,
       passes: [{ s: 20, len: 2.8, cov: 1 }, { s: 10, len: 2.8, cov: 0.8 }, { s: 5, len: 2.4, cov: 0.5, detail: 40 }],
@@ -743,6 +787,7 @@
   }
   hero.addEventListener('pointerdown', (e) => { if (e.target.closest('a,button')) return; const [x, y] = toVirtual(e.clientX, e.clientY); breeze(x, y); });
   document.getElementById('stir').addEventListener('click', () => breeze());
+  document.getElementById('lead').addEventListener('submit', (e) => { e.preventDefault(); document.getElementById('lead-note').hidden = false; });
 
   // ---------- rendering ----------
   const intro = () => 1 - Math.pow(1 - clamp(t / 8, 0, 1), 3);
@@ -782,7 +827,7 @@
     ctx.fillStyle = g; ctx.fillRect(X0 - 200, y0, LW + 400, y1 - y0); ctx.globalCompositeOperation = 'source-over';
   }
   function drawFarmLife(dt) {
-    tf(0.22);
+    tf(0.22); ctx.translate(FX, 0);
     // window glow
     ctx.globalCompositeOperation = 'lighter';
     WINDOWS.forEach(([x, y, r], i) => {
