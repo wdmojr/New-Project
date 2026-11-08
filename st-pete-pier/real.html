@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>St. Pete Pier Real</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.123.0/Build/Cesium/Widgets/widgets.css">
+<style>
+/* Layout: the photogrammetry city fills the screen; glass instruments float at the corners. */
+:root {
+  --ink: #f6efe3; --ink-dim: rgba(246,239,227,.68);
+  --glass: rgba(9,20,30,.55); --glass-strong: rgba(9,20,30,.82); --line: rgba(246,239,227,.16);
+  --sunset: #ffb25e; --coral: #ff7a59; --bay: #5fd0c7; --bg: #071019;
+  --f-display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); overflow: hidden; -webkit-font-smoothing: antialiased; }
+#viewer { position: fixed; inset: 0; }
+.cesium-viewer-bottom { bottom: calc(150px + env(safe-area-inset-bottom, 0px)) !important; left: 12px !important; }
+.cesium-credit-textContainer, .cesium-credit-expand-link { color: var(--ink-dim) !important; }
+button { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--sunset); outline-offset: 2px; }
+.glass { background: var(--glass); backdrop-filter: blur(14px) saturate(1.3); -webkit-backdrop-filter: blur(14px) saturate(1.3); border: 1px solid var(--line); border-radius: 14px; }
+#masthead { position: fixed; top: calc(18px + env(safe-area-inset-top, 0px)); left: calc(20px + env(safe-area-inset-left, 0px)); pointer-events: none; text-shadow: 0 2px 18px rgba(0,0,0,.5); }
+.eyebrow { font-family: var(--f-mono); font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--ink-dim); }
+#masthead h1 { margin: 4px 0 2px; font-family: var(--f-display); font-weight: 900; font-size: clamp(42px, 7vw, 92px); line-height: .86; text-transform: uppercase; }
+#masthead h1 span { color: var(--sunset); }
+#masthead .sub { font-size: 14px; color: var(--ink-dim); }
+#tools { position: fixed; top: calc(18px + env(safe-area-inset-top, 0px)); right: calc(18px + env(safe-area-inset-right, 0px)); display: flex; gap: 8px; }
+.icon-btn { width: 42px; height: 42px; display: grid; place-items: center; cursor: pointer; padding: 0; }
+.icon-btn svg { width: 19px; height: 19px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.icon-btn[aria-pressed="true"] { color: var(--sunset); }
+#dock { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); width: min(940px, calc(100vw - 24px)); box-sizing: border-box; padding: 14px 16px 12px; display: grid; gap: 12px; }
+.time-row { display: grid; grid-template-columns: auto auto 1fr auto; align-items: center; gap: 14px; }
+#clock { font-family: var(--f-display); font-weight: 800; font-size: 34px; line-height: 1; min-width: 4.3ch; font-variant-numeric: tabular-nums; }
+#clock small { font-size: 16px; margin-left: 3px; color: var(--ink-dim); }
+#phase { font-family: var(--f-mono); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--sunset); white-space: nowrap; }
+.play { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line); background: rgba(255,255,255,.06); cursor: pointer; display: grid; place-items: center; padding: 0; }
+.play svg { width: 16px; height: 16px; fill: currentColor; }
+#timeline { -webkit-appearance: none; appearance: none; width: 100%; height: 26px; background: transparent; cursor: pointer; margin: 0; }
+#timeline::-webkit-slider-runnable-track { height: 8px; border-radius: 6px; background: linear-gradient(90deg,#0a1428 0%,#1b2453 22%,#f0764a 27%,#ffb36e 30%,#7fc0ee 40%,#a9d6f5 52%,#7fc0ee 64%,#ffb36e 70%,#f0764a 74%,#1b2453 80%,#0a1428 100%); }
+#timeline::-moz-range-track { height: 8px; border-radius: 6px; background: linear-gradient(90deg,#0a1428 0%,#1b2453 22%,#f0764a 27%,#ffb36e 30%,#7fc0ee 40%,#a9d6f5 52%,#7fc0ee 64%,#ffb36e 70%,#f0764a 74%,#1b2453 80%,#0a1428 100%); }
+#timeline::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -7px; border-radius: 50%; background: var(--ink); border: 4px solid var(--sunset); }
+#timeline::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--ink); border: 4px solid var(--sunset); }
+.ticks { display: flex; justify-content: space-between; font-family: var(--f-mono); font-size: 10px; color: var(--ink-dim); padding: 0 4px; }
+.live-btn { font-family: var(--f-mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; padding: 9px 12px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,.06); cursor: pointer; display: flex; align-items: center; gap: 7px; }
+.live-btn i { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-dim); }
+.live-btn[aria-pressed="true"] i { background: var(--coral); box-shadow: 0 0 10px var(--coral); }
+.chip-row { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.chip-row::-webkit-scrollbar { display: none; }
+.chip { flex: none; font-size: 13px; font-weight: 500; padding: 8px 13px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,.05); cursor: pointer; white-space: nowrap; }
+.chip:hover { background: rgba(255,255,255,.12); }
+.chip[aria-pressed="true"] { background: var(--ink); color: #10202b; }
+.chip.fire { margin-left: auto; background: linear-gradient(135deg, rgba(255,122,89,.9), rgba(255,178,94,.9)); color: #2a1206; border-color: transparent; font-weight: 600; }
+#card { position: fixed; right: calc(18px + env(safe-area-inset-right, 0px)); top: calc(76px + env(safe-area-inset-top, 0px)); width: min(330px, calc(100vw - 36px)); box-sizing: border-box; padding: 18px; transition: opacity .35s; }
+#card[hidden] { display: block !important; opacity: 0; pointer-events: none; }
+#card .eyebrow { color: var(--bay); }
+#card h2 { font-family: var(--f-display); font-weight: 800; font-size: 32px; line-height: .95; margin: 6px 0 8px; text-transform: uppercase; }
+#card p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--ink-dim); }
+#card .close { position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; border: 0; border-radius: 8px; background: rgba(255,255,255,.07); cursor: pointer; font-size: 18px; }
+#toast { position: fixed; left: 50%; top: calc(22px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); padding: 8px 14px; font-family: var(--f-mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; opacity: 0; transition: .35s; pointer-events: none; white-space: nowrap; }
+#toast.on { opacity: 1; }
+/* key gate */
+#gate { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 16px; background: radial-gradient(ellipse at 50% 80%, #1d2a5e 0%, #071019 70%); }
+#gate[hidden] { display: none; }
+#gate form { width: min(520px, 100%); padding: 26px; box-sizing: border-box; }
+#gate h2 { font-family: var(--f-display); font-weight: 900; font-size: 44px; line-height: .9; margin: 6px 0 12px; text-transform: uppercase; }
+#gate h2 span { color: var(--sunset); }
+#gate p, #gate li { font-size: 14px; line-height: 1.55; color: var(--ink-dim); }
+#gate ol { padding-left: 20px; margin: 10px 0 16px; }
+#gate a { color: var(--bay); }
+#gate label { display: block; font-family: var(--f-mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; margin-bottom: 6px; }
+#gate .row { display: flex; gap: 8px; flex-wrap: wrap; }
+#gate input { flex: 1; min-width: 0; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--line); background: rgba(0,0,0,.35); color: var(--ink); font-family: var(--f-mono); font-size: 13px; }
+#gate button[type=submit] { padding: 11px 16px; border-radius: 10px; border: 0; background: var(--sunset); color: #2a1206; font-weight: 600; cursor: pointer; }
+#gateErr { color: var(--coral) !important; min-height: 1.4em; margin: 8px 0 0; }
+#loading { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 12px 18px; font-family: var(--f-mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
+@media (max-width: 640px) {
+  .time-row { grid-template-columns: auto 1fr auto; }
+  .time-row .slider-wrap { grid-column: 1 / -1; order: 5; }
+  .chip.fire { margin-left: 0; }
+  #card { top: auto; bottom: calc(190px + env(safe-area-inset-bottom, 0px)); }
+}
+</style>
+</head>
+<body>
+<div id="viewer" aria-label="Photorealistic 3D view of the St. Pete Pier and downtown St. Petersburg"></div>
+
+<header id="masthead">
+  <div class="eyebrow">Tampa Bay · St. Petersburg, Florida</div>
+  <h1>St. Pete <span>Pier</span></h1>
+  <div class="sub">The real city, in photorealistic 3D</div>
+</header>
+
+<div id="tools">
+  <button class="icon-btn glass" id="btnSound" aria-pressed="false" aria-label="Sound"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>
+  <button class="icon-btn glass" id="btnKey" aria-label="Change API key"><svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M15 8l2 2"/></svg></button>
+  <button class="icon-btn glass" id="btnFull" aria-label="Full screen"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+</div>
+
+<aside id="card" class="glass" hidden aria-live="polite">
+  <button class="close" id="cardClose" aria-label="Close">×</button>
+  <div class="eyebrow" id="cardKicker"></div>
+  <h2 id="cardTitle"></h2>
+  <p id="cardText"></p>
+</aside>
+<div id="toast" class="glass"></div>
+<div id="loading" class="glass" hidden>Streaming the city…</div>
+
+<section id="dock" class="glass" aria-label="Scene controls">
+  <div class="time-row">
+    <button class="play" id="btnPlay" aria-label="Play time-lapse"><svg viewBox="0 0 24 24" id="playIcon"><path d="M7 4.5v15l12-7.5z"/></svg></button>
+    <div><div id="clock">5:15<small>PM</small></div><div id="phase">Golden hour</div></div>
+    <div class="slider-wrap">
+      <input type="range" id="timeline" min="0" max="24" step="0.01" value="17.25" aria-label="Time of day">
+      <div class="ticks"><span>12A</span><span>6A</span><span>NOON</span><span>6P</span><span>12A</span></div>
+    </div>
+    <button class="live-btn" id="btnLive" aria-pressed="false" title="Match the real time in St. Petersburg"><i></i>Live</button>
+  </div>
+  <div class="chip-row" role="group" aria-label="Camera">
+    <button class="chip" data-cam="overview" aria-pressed="true">Overview</button>
+    <button class="chip" data-cam="rooftop" aria-pressed="false">Pierhead rooftop</button>
+    <button class="chip" data-cam="water" aria-pressed="false">Water level</button>
+    <button class="chip" data-cam="beach" aria-pressed="false">Spa Beach</button>
+    <button class="chip" data-cam="downtown" aria-pressed="false">Downtown</button>
+    <button class="chip" data-cam="vinoy" aria-pressed="false">The Vinoy</button>
+    <button class="chip" data-cam="tour" aria-pressed="false">Orbit tour</button>
+    <button class="chip fire" id="btnFire">Launch fireworks</button>
+  </div>
+</section>
+
+<div id="gate">
+  <form class="glass" id="gateForm">
+    <div class="eyebrow">Photorealistic 3D Tiles</div>
+    <h2>Fly the real <span>St. Pete Pier</span></h2>
+    <p>This view streams Google's photogrammetry model of St. Petersburg, built from aerial imagery. It needs your own Google Maps Platform key:</p>
+    <ol>
+      <li>In the <a href="https://console.cloud.google.com/google/maps-apis/library/tile.googleapis.com" target="_blank" rel="noopener">Google Cloud console</a>, turn on the <b>Map Tiles API</b> for a project with billing.</li>
+      <li>Create an API key under <b>Credentials</b>. Restrict it to the Map Tiles API and to the website address where this page is hosted.</li>
+      <li>Paste it below. It stays in this browser only.</li>
+    </ol>
+    <label for="keyInput">Google Maps API key</label>
+    <div class="row">
+      <input id="keyInput" autocomplete="off" spellcheck="false" placeholder="AIza…">
+      <button type="submit">Open the pier</button>
+    </div>
+    <p id="gateErr" role="alert"></p>
+  </form>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/cesium@1.123.0/Build/Cesium/Cesium.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = (s) => document.querySelector(s);
+const KEY_STORE = 'stpete-gmaps-key';
+const store = { get() { try { return localStorage.getItem(KEY_STORE) || ''; } catch (e) { return ''; } }, set(v) { try { localStorage.setItem(KEY_STORE, v); } catch (e) {} } };
+
+// ---------- real-world reference points (WGS84) ----------
+const PIER_ROOT = [-82.6265, 27.7735], PIERHEAD = [-82.62245, 27.77372];
+const KX = 98527, KZ = 110574; // metres per degree at this latitude
+const toLL = (x, z) => [PIER_ROOT[0] + x / KX, PIER_ROOT[1] - z / KZ]; // local metres (x east, z south) -> lon, lat
+let SEA = -27; // ellipsoid height of the water surface; refined by sampling once tiles load
+
+const SPOTS = [
+  { id: 'head', ll: PIERHEAD, up: 32, label: 'Pierhead', kicker: 'Rogers Partners · 2020', text: 'Shops and a gift shop at deck level, Teak restaurant above, and the Pier Teaki tiki bar on the roof under a perforated steel canopy.', cam: 'rooftop' },
+  { id: 'lawn', ll: toLL(225, -20), up: 16, label: 'Tilted Lawn', kicker: 'Mid-pier', text: 'A triangular lawn of about 10,000 square feet that slopes up into a viewing platform aimed at the Pierhead, with a shaded grotto beneath it.', cam: 'water' },
+  { id: 'fish', ll: toLL(422, -12), up: 10, label: 'Fishing Deck', kicker: 'End of the pier', text: 'The fishing deck at the far tip of the pier, past the Pierhead.', cam: 'water' },
+  { id: 'disc', ll: toLL(161, -15), up: 12, label: 'Discovery Center', kicker: 'Tampa Bay Watch', text: 'The education center beside the wet classroom, where concrete steps lead down to the water around piles kept from the old pier.', cam: 'water' },
+  { id: 'arc', ll: toLL(-140, -28), up: 30, label: 'Bending Arc site', kicker: 'Janet Echelman', text: 'Home of the 424-foot aerial net sculpture over the pier approach. It was taken down for repair after the 2024 hurricanes, so the 3D imagery may or may not show it, depending on when the area was photographed.', cam: 'beach' },
+  { id: 'beach', ll: toLL(-55, -205), up: 8, label: 'Spa Beach', kicker: 'Pier District', text: 'The swimming beach beside the pier approach, sheltered by a rock breakwater.', cam: 'beach' },
+  { id: 'vinoy', ll: [-82.6300, 27.7784], up: 45, label: 'The Vinoy', kicker: 'Historic hotel · 1925', text: 'The pink Mediterranean Revival resort on Vinoy Basin, just north of the pier.', cam: 'vinoy' },
+  { id: 'city', ll: [-82.6385, 27.7712], up: 160, label: 'Downtown', kicker: 'St. Petersburg', text: 'The pier runs east from downtown into Tampa Bay, so the sun sets behind this skyline and rises over the bay.', cam: 'downtown' }
+];
+// camera presets: position [lon, lat, metres above water], heading/pitch in degrees
+const CAMS = {
+  overview: { p: [-82.6125, 27.7652, 300], h: -58, t: -21 },
+  rooftop: { p: [-82.62236, 27.77370, 31], h: -88, t: -4 },
+  water: { p: [-82.6205, 27.7726, 4], h: -62, t: 6 },
+  beach: { p: [-82.6252, 27.7728, 40], h: -40, t: -14 },
+  downtown: { p: [-82.6290, 27.7660, 210], h: -70, t: -17 },
+  vinoy: { p: [-82.6262, 27.7758, 110], h: -55, t: -24 }
+};
+
+// ---------- key gate ----------
+const gate = $('#gate'), keyInput = $('#keyInput'), gateErr = $('#gateErr');
+const urlKey = new URLSearchParams(location.search).get('key');
+let started = false;
+function showGate(msg) { gate.hidden = false; gateErr.textContent = msg || ''; keyInput.value = store.get(); keyInput.focus(); }
+$('#gateForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const k = keyInput.value.trim();
+  if (!/^AIza[0-9A-Za-z_-]{20,}$/.test(k)) { gateErr.textContent = 'That doesn’t look like a Google API key. Keys start with “AIza”.'; return; }
+  store.set(k); gate.hidden = true;
+  if (started) location.reload(); else start(k);
+});
+$('#btnKey').addEventListener('click', () => showGate());
+if (!window.Cesium) { showGate(); gateErr.textContent = 'The 3D engine could not load. Check your connection and reload the page.'; return; }
+const initialKey = urlKey || store.get();
+if (initialKey) { gate.hidden = true; start(initialKey); } else showGate();
+
+// ---------- the scene ----------
+let viewer, night = 0, nightStage;
+async function start(key) {
+  started = true;
+  $('#loading').hidden = false;
+  Cesium.GoogleMaps.defaultApiKey = key;
+  viewer = new Cesium.Viewer('viewer', {
+    globe: false, baseLayerPicker: false, geocoder: false, homeButton: false, sceneModePicker: false,
+    navigationHelpButton: false, animation: false, timeline: false, fullscreenButton: false, infoBox: false,
+    selectionIndicator: false, requestRenderMode: false, shadows: true, msaaSamples: 4
+  });
+  const scene = viewer.scene;
+  scene.skyAtmosphere.show = true;
+  scene.fog.enabled = true;
+  scene.highDynamicRange = true;
+  scene.postProcessStages.fxaa.enabled = true;
+  viewer.shadowMap.softShadows = true; viewer.shadowMap.size = 4096; viewer.shadowMap.darkness = 0.35;
+  const bloom = scene.postProcessStages.bloom; bloom.enabled = true;
+  bloom.uniforms.contrast = 128; bloom.uniforms.brightness = -0.35; bloom.uniforms.sigma = 2.5; bloom.uniforms.delta = 1.0; bloom.uniforms.stepSize = 1.2;
+  viewer.clock.shouldAnimate = true; viewer.clock.multiplier = 1;
+  try {
+    const tiles = await Cesium.createGooglePhotorealistic3DTileset({ onlyUsingWithGoogleGeocoder: true });
+    tiles.shadows = Cesium.ShadowMode.ENABLED;
+    tiles.maximumScreenSpaceError = 8;
+    scene.primitives.add(tiles);
+    tiles.tileFailed.addEventListener(() => {});
+    tiles.initialTilesLoaded.addEventListener(async () => {
+      $('#loading').hidden = true;
+      try {
+        const [c] = await scene.sampleHeightMostDetailed([Cesium.Cartographic.fromDegrees(-82.6160, 27.7735)]);
+        if (c && Number.isFinite(c.height) && Math.abs(c.height + 27) < 15) { SEA = c.height; placeSpots(); }
+      } catch (e) {}
+    });
+  } catch (e) {
+    $('#loading').hidden = true;
+    showGate('Google rejected the key: ' + (e && e.message ? e.message : 'unknown error') + '. Check that the Map Tiles API is turned on and the key allows this site.');
+    return;
+  }
+  // night grade for the daylight-baked photo textures; very bright pixels (lamps, fireworks) pass through
+  nightStage = new Cesium.PostProcessStage({
+    fragmentShader: `uniform sampler2D colorTexture; uniform float night; in vec2 v_textureCoordinates;
+      void main(){ vec4 c = texture(colorTexture, v_textureCoordinates); vec3 g = c.rgb;
+        float l = dot(g, vec3(0.299,0.587,0.114)); float hot = smoothstep(0.82, 1.0, max(max(g.r,g.g),g.b));
+        vec3 n = mix(g, vec3(l), 0.55) * vec3(0.30, 0.40, 0.78) * 0.42;
+        out_FragColor = vec4(mix(g, mix(n, g, hot), night), c.a); }`,
+    uniforms: { night: () => night }
+  });
+  scene.postProcessStages.add(nightStage);
+  placeSpots();
+  buildLamps();
+  setTime(timeOfDay);
+  goCam('overview', 0);
+  setTimeout(() => goCam('overview', 5), 300);
+  wire();
+  scene.preRender.addEventListener(tick);
+}
+
+// ---------- hotspots ----------
+let spotEntities = [];
+function placeSpots() {
+  spotEntities.forEach(e => viewer.entities.remove(e)); spotEntities = [];
+  SPOTS.forEach(s => {
+    const e = viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(s.ll[0], s.ll[1], SEA + s.up),
+      point: { pixelSize: 12, color: Cesium.Color.fromCssColorString('#f6efe3'), outlineColor: Cesium.Color.fromCssColorString('#ffb25e'), outlineWidth: 3, disableDepthTestDistance: Number.POSITIVE_INFINITY },
+      label: { text: s.label.toUpperCase(), font: '500 12px "IBM Plex Mono", monospace', fillColor: Cesium.Color.WHITE, showBackground: true, backgroundColor: Cesium.Color.fromCssColorString('rgba(9,20,30,0.8)'), backgroundPadding: new Cesium.Cartesian2(8, 5), pixelOffset: new Cesium.Cartesian2(0, -22), disableDepthTestDistance: Number.POSITIVE_INFINITY, distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 4500), scaleByDistance: new Cesium.NearFarScalar(300, 1, 4000, 0.7) }
+    });
+    e.spot = s; spotEntities.push(e);
+  });
+}
+function openCard(s) { $('#cardKicker').textContent = s.kicker; $('#cardTitle').textContent = s.label; $('#cardText').textContent = s.text; $('#card').hidden = false; }
+$('#cardClose').addEventListener('click', () => { $('#card').hidden = true; });
+
+// pier lamps that glow after dark, spaced along the promenade
+let lamps;
+function buildLamps() {
+  lamps = viewer.scene.primitives.add(new Cesium.PointPrimitiveCollection());
+  for (let x = 52; x < 380; x += 24) for (const z of [-1.4, -18.5]) {
+    if (z < -10 && (x < 240 || x > 300)) continue;
+    const [lo, la] = toLL(x, z);
+    lamps.add({ position: Cesium.Cartesian3.fromDegrees(lo, la, SEA + 12.2), pixelSize: 7, color: new Cesium.Color(1.0, 0.75, 0.45, 0) });
+  }
+}
+
+// ---------- time of day (real sun position for St. Petersburg) ----------
+let timeOfDay = 17.25, playing = false, live = false;
+function tzOffsetHours(date) {
+  const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).formatToParts(date);
+  const g = (t) => +p.find(x => x.type === t).value;
+  const asUTC = Date.UTC(g('year'), g('month') - 1, g('day'), g('hour') % 24, g('minute'));
+  return Math.round((asUTC - date.getTime()) / 3600000);
+}
+function tampaNow() {
+  const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour12: false, hour: 'numeric', minute: 'numeric', second: 'numeric' }).formatToParts(new Date());
+  const g = (t) => +p.find(x => x.type === t).value; return (g('hour') % 24) + g('minute') / 60 + g('second') / 3600;
+}
+function setTime(h) {
+  timeOfDay = (h + 24) % 24;
+  const now = new Date(), off = tzOffsetHours(now);
+  const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);
+  const g = (t) => +p.find(x => x.type === t).value;
+  const ms = Date.UTC(g('year'), g('month') - 1, g('day')) + (timeOfDay - off) * 3600000;
+  if (viewer) {
+    viewer.clock.currentTime = Cesium.JulianDate.fromDate(new Date(ms));
+    const sunPos = Cesium.Simon1994PlanetaryPositions.computeSunPositionInEarthInertialFrame(viewer.clock.currentTime);
+    const icrf = Cesium.Transforms.computeIcrfToFixedMatrix(viewer.clock.currentTime) || Cesium.Transforms.computeTemeToPseudoFixedMatrix(viewer.clock.currentTime);
+    const sunFixed = Cesium.Matrix3.multiplyByVector(icrf, sunPos, new Cesium.Cartesian3());
+    const site = Cesium.Cartesian3.fromDegrees(PIERHEAD[0], PIERHEAD[1], 0);
+    const up = Cesium.Cartesian3.normalize(site, new Cesium.Cartesian3());
+    const toSun = Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(sunFixed, site, new Cesium.Cartesian3()), new Cesium.Cartesian3());
+    const elev = Cesium.Cartesian3.dot(up, toSun);
+    night = 1 - Cesium.Math.clamp((elev + 0.12) / 0.16, 0, 1);
+    if (lamps) for (let i = 0; i < lamps.length; i++) lamps.get(i).color = new Cesium.Color(1.0, 0.78, 0.5, Cesium.Math.clamp((0.02 - elev) / 0.1, 0, 1));
+    phaseFor(elev);
+  }
+  const hh = Math.floor(timeOfDay), mm = Math.floor((timeOfDay - hh) * 60);
+  $('#clock').innerHTML = `${((hh + 11) % 12) + 1}:${String(mm).padStart(2, '0')}<small>${hh < 12 ? 'AM' : 'PM'}</small>`;
+  if (document.activeElement !== $('#timeline')) $('#timeline').value = timeOfDay.toFixed(2);
+}
+function phaseFor(e) {
+  const m = timeOfDay < 12;
+  $('#phase').textContent = e < -0.12 ? 'Night over the bay' : e < -0.01 ? (m ? 'First light' : 'Blue hour') : e < 0.14 ? (m ? 'Sunrise over Tampa Bay' : 'Golden hour') : 'Daytime';
+}
+
+// ---------- cameras ----------
+let tour = false, tourHeading = 0;
+function goCam(name, dur = 3) {
+  document.querySelectorAll('.chip[data-cam]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cam === name)));
+  tour = name === 'tour';
+  if (tour) { tourHeading = Cesium.Math.toRadians(-60); return; }
+  const c = CAMS[name];
+  viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(c.p[0], c.p[1], SEA + c.p[2]), orientation: { heading: Cesium.Math.toRadians(c.h), pitch: Cesium.Math.toRadians(c.t), roll: 0 }, duration: dur, easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT });
+}
+
+// ---------- fireworks over the bay ----------
+const dot = (() => { const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d'); const gr = g.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.3, 'rgba(255,255,255,.8)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 32, 32); return c; })();
+const PAL = ['#ff5a3c', '#ffd166', '#4cc9f0', '#f72585', '#b8f2a0', '#c77dff', '#ffffff'];
+function burst() {
+  const [lo, la] = [-82.6150 + Math.random() * 0.004, 27.7712 + Math.random() * 0.005];
+  const h = SEA + 110 + Math.random() * 60;
+  const center = Cesium.Cartesian3.fromDegrees(lo, la, h);
+  const color = Cesium.Color.fromCssColorString(PAL[Math.floor(Math.random() * PAL.length)]);
+  const color2 = Cesium.Color.fromCssColorString(PAL[Math.floor(Math.random() * PAL.length)]);
+  const gravity = new Cesium.Cartesian3(), down = Cesium.Cartesian3.normalize(center, new Cesium.Cartesian3());
+  const ps = viewer.scene.primitives.add(new Cesium.ParticleSystem({
+    image: dot, startColor: color.withAlpha(1), endColor: color2.withAlpha(0), startScale: 1.2, endScale: 0.3,
+    minimumParticleLife: 1.4, maximumParticleLife: 2.4, minimumSpeed: 28, maximumSpeed: 42,
+    imageSize: new Cesium.Cartesian2(9, 9), emissionRate: 0, lifetime: 3.2, loop: false,
+    bursts: [new Cesium.ParticleBurst({ time: 0.0, minimum: 260, maximum: 340 })],
+    emitter: new Cesium.SphereEmitter(1.5),
+    modelMatrix: Cesium.Transforms.eastNorthUpToFixedFrame(center),
+    updateCallback: (p, dt) => { Cesium.Cartesian3.multiplyByScalar(down, -9.8 * dt, gravity); p.velocity = Cesium.Cartesian3.add(p.velocity, gravity, p.velocity); Cesium.Cartesian3.multiplyByScalar(p.velocity, 0.985, p.velocity); }
+  }));
+  setTimeout(() => viewer.scene.primitives.remove(ps), 4000);
+  const dist = Cesium.Cartesian3.distance(viewer.camera.positionWC, center);
+  sfx.boom(dist);
+}
+function show(n = 10) { for (let i = 0; i < n; i++) setTimeout(() => { sfx.whistle(); setTimeout(burst, 1300); }, i * (350 + Math.random() * 600)); }
+
+// ---------- sound ----------
+const sfx = (() => {
+  let ctx, master, buf, on = false;
+  function init() {
+    ctx = new (window.AudioContext || window.webkitAudioContext)(); master = ctx.createGain(); master.connect(ctx.destination);
+    buf = ctx.createBuffer(1, ctx.sampleRate * 3, ctx.sampleRate); const d = buf.getChannelData(0); let l = 0;
+    for (let i = 0; i < d.length; i++) { l = (l + 0.02 * (Math.random() * 2 - 1)) / 1.02; d[i] = l * 3.5; }
+    const s = ctx.createBufferSource(); s.buffer = buf; s.loop = true; const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 650;
+    const g = ctx.createGain(); g.gain.value = 0.3; const lfo = ctx.createOscillator(); lfo.frequency.value = 0.11; const lg = ctx.createGain(); lg.gain.value = 0.2; lfo.connect(lg); lg.connect(g.gain); lfo.start();
+    s.connect(f); f.connect(g); g.connect(master); s.start();
+  }
+  function noise(dur, type, freq, vol, delay) { if (!on) return; const t = ctx.currentTime + delay; const s = ctx.createBufferSource(); s.buffer = buf; const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); s.connect(f); f.connect(g); g.connect(master); s.start(t, Math.random() * 2); s.stop(t + dur + 0.05); }
+  return {
+    toggle() { if (!ctx) init(); on = !on; if (on) ctx.resume(); master.gain.setTargetAtTime(on ? 0.8 : 0, ctx.currentTime, 0.2); return on; },
+    boom(d) { const dl = Math.min(3, d / 343); noise(1.6, 'lowpass', 160, 1.1, dl); for (let i = 0; i < 6; i++) noise(0.05, 'highpass', 3000, 0.1, dl + 0.4 + Math.random() * 0.8); },
+    whistle() { if (!on) return; const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.setValueAtTime(900, t); o.frequency.exponentialRampToValueAtTime(2600, t + 1.3); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.04, t + 0.05); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.3); o.connect(g); g.connect(master); o.start(t); o.stop(t + 1.4); }
+  };
+})();
+
+// ---------- UI ----------
+let toastT;
+function toast(m) { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2400); }
+function setPlaying(p) { playing = p; $('#btnPlay').setAttribute('aria-label', p ? 'Pause time-lapse' : 'Play time-lapse'); $('#playIcon').innerHTML = p ? '<path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/>' : '<path d="M7 4.5v15l12-7.5z"/>'; }
+function setLive(v) { live = v; $('#btnLive').setAttribute('aria-pressed', String(v)); if (v) { setPlaying(false); toast('Synced to St. Petersburg time'); } }
+function wire() {
+  $('#btnPlay').addEventListener('click', () => { setLive(false); setPlaying(!playing); });
+  $('#btnLive').addEventListener('click', () => setLive(!live));
+  $('#timeline').addEventListener('input', (e) => { setLive(false); setTime(+e.target.value); });
+  document.querySelectorAll('.chip[data-cam]').forEach(b => b.addEventListener('click', () => goCam(b.dataset.cam)));
+  $('#btnFire').addEventListener('click', () => { show(12); if (night < 0.5) toast('Fireworks look best after dark: drag the clock to night'); });
+  $('#btnSound').addEventListener('click', (e) => { const on = sfx.toggle(); e.currentTarget.setAttribute('aria-pressed', String(on)); });
+  $('#btnFull').addEventListener('click', () => { try { if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {}); else document.exitFullscreen(); } catch (e) {} });
+  const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+  handler.setInputAction((m) => {
+    const picked = viewer.scene.pick(m.position);
+    if (picked && picked.id && picked.id.spot) { openCard(picked.id.spot); goCam(picked.id.spot.cam); }
+  }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+  handler.setInputAction(() => { if (tour) { tour = false; document.querySelectorAll('.chip[data-cam]').forEach(b => b.setAttribute('aria-pressed', 'false')); } }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
+}
+let last = performance.now(), nextShow = 0;
+function tick() {
+  const now = performance.now(), dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (live) setTime(tampaNow());
+  else if (playing) setTime(timeOfDay + dt / 12);
+  else viewer.clock.currentTime = viewer.clock.currentTime; // hold the sun where the slider put it
+  if (tour) {
+    tourHeading += dt * 0.08;
+    const target = Cesium.Cartesian3.fromDegrees(PIERHEAD[0] - 0.0012, PIERHEAD[1], SEA + 10);
+    viewer.camera.lookAt(target, new Cesium.HeadingPitchRange(tourHeading, Cesium.Math.toRadians(-18), 650));
+  } else viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+  if (night > 0.8 && now > nextShow) { show(6 + Math.floor(Math.random() * 5)); nextShow = now + 12000 + Math.random() * 6000; }
+}
+// stop Cesium's clock from advancing the sun on its own; the slider owns time
+setInterval(() => { if (viewer && !live && !playing) setTime(timeOfDay); }, 1000);
+})();
+</script>
+</body>
+</html>

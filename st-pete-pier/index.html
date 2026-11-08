@@ -817,13 +817,12 @@ const HEAD = new THREE.Group();
   // placed on the mapped Pierhead footprint, turned to match it
   HEAD.position.set(393, DECK_Y, -24); HEAD.rotation.y = -0.46; HEAD.scale.set(0.66, 0.95, 0.7); pier.add(HEAD);
   const glass = headGlass();
-  const L = [0, 5.4, 10.6, 15.8, 21.0]; // floor levels above the deck
-  for (const x of [-11, 11]) blockers.push(mesh(worldBox(7, 21, 10, 4), M.white, x, 10.5, 0, HEAD));
+  // three levels: shops and gift shop at deck level, Teak restaurant above, rooftop tiki bar under the canopy
+  const L = [0, 5.4, 5.4, 5.4, 10.8];
+  for (const x of [-11, 11]) blockers.push(mesh(worldBox(7, 10.8, 10, 4), M.white, x, 5.4, 0, HEAD));
   mesh(glassBox(34, 5.2, 22), glass, 0, 2.6, 0, HEAD);
   mesh(glassBox(38, 4.9, 26), glass, 0, L[1] + 2.6, 0, HEAD);
-  mesh(glassBox(36, 4.9, 24), glass, 0, L[2] + 2.6, 0, HEAD);
-  mesh(glassBox(22, 4.9, 16), glass, 0, L[3] + 2.6, 0, HEAD);
-  const slabs = [[L[1], 50, 38], [L[2], 46, 36], [L[3], 54, 40], [L[4], 42, 32]];
+  const slabs = [[L[1], 48, 36], [L[4], 52, 40]];
   slabs.forEach(([y, w, d]) => blockers.push(mesh(taperSlab(w, d, 1.3), M.white, 0, y + 0.1, 0, HEAD)));
   for (const [y, w, d] of slabs) {
     for (const s of [-1, 1]) {
@@ -851,7 +850,7 @@ const HEAD = new THREE.Group();
   for (let i = 0; i < tp.count; i++) {
     const u = tp.getX(i) + 0.5, v = tp.getY(i) + 0.5, iu = 1 - u;
     const x = iu * iu * -30 + 2 * iu * u * -44 + u * u * -27;
-    const y = iu * iu * (L[4] + 6.6) + 2 * iu * u * (L[4] + 2) + u * u * (L[3] + 1.0);
+    const y = iu * iu * (L[4] + 6.6) + 2 * iu * u * (L[4] + 3) + u * u * (L[4] + 0.8);
     const z = (v - 0.5) * (20 - u * 4) + Math.sin(u * 6 + v * 3) * 0.6;
     tp.setXYZ(i, x, y, z); tuv.setXY(i, u * 6, v * 4);
   }
@@ -880,7 +879,7 @@ for (let i = 0; i < PEOPLE; i++) {
   people.setColorAt(i, new C(CLOTHES[Math.floor(rnd() * CLOTHES.length)]));
   const r = rnd();
   if (r < 0.72) peeps.push({ kind: 'deck', x: rr(50, 380), z: rr(-16, -3), dir: rnd() < 0.5 ? 1 : -1, sp: rr(1.0, 1.6), ph: rnd() * 9 });
-  else if (r < 0.88) { const lv = rnd() < 0.6 ? 21.0 : 15.8; peeps.push({ kind: 'head', local: new V3(rr(-18, 18), lv + 0.1, rr(-13, 13)), ph: rnd() * 9 }); }
+  else if (r < 0.88) { const lv = rnd() < 0.6 ? 10.8 : 5.4; peeps.push({ kind: 'head', local: new V3(rr(-18, 18), lv + 0.1, rr(-13, 13)), ph: rnd() * 9 }); }
   else peeps.push({ kind: 'shore', x: rr(-60, 30), z: rr(-230, -30), dir: rnd() < 0.5 ? 1 : -1, sp: rr(1.0, 1.5), ph: rnd() * 9 });
 }
 scene.add(people);
@@ -954,7 +953,7 @@ function updatePalms(t, wind) {
 
 // ---------- Bending Arc (Janet Echelman): three parasol-like lobes, 424 ft wide, ~72 ft tall ----------
 const NU = 120, NV = 30, ARC_W = 26, ARC_TOP = 22;
-const arcCtrl = [new V3(-72, 0, -205), new V3(-28, 0, -128), new V3(-74, 0, -50)];
+const arcCtrl = [new V3(-205, 0, -14), new V3(-140, 0, -40), new V3(-75, 0, -16)]; // over the pier approach
 const _a = new V3(), _b = new V3(), _tan = new V3(), _nrm = new V3();
 function arcCenter(u, out) {
   const P0 = arcCtrl[0], P2 = arcCtrl[2];
@@ -1011,7 +1010,8 @@ const arcLines = new THREE.LineSegments(arcLineGeo, arcLineMat); arcLines.frustu
 const arcSurf = new THREE.Mesh(arcSurfGeo, arcSurfMat); arcSurf.frustumCulled = false;
 scene.add(arcLines, arcSurf);
 const arcProxy = new THREE.Mesh(new THREE.BoxGeometry(60, 24, 150), new THREE.MeshBasicMaterial({ visible: false }));
-arcProxy.position.set(-50, 16, -128); arcProxy.userData.kind = 'arc'; scene.add(arcProxy);
+arcProxy.position.set(-140, 16, -28);
+arcProxy.rotation.y = Math.PI / 2; arcProxy.userData.kind = 'arc'; scene.add(arcProxy);
 function updateArc(t, wind) {
   for (let i = 0; i < NU; i++) {
     const u = i / (NU - 1);
@@ -1474,8 +1474,8 @@ $('#btnFire').addEventListener('click', () => {
 // ---------- cameras ----------
 const PRESETS = {
   overview: { pos: [640, 105, 290], tgt: [120, 14, -70] },
-  arc: { pos: [25, 9, -35], tgt: [-52, 17, -130] },
-  rooftop: { pos: [397, DECK_Y + 22.2, -20], tgt: [-1100, 50, 180] },
+  arc: { pos: [-40, 9, 25], tgt: [-140, 18, -30] },
+  rooftop: { pos: [397, DECK_Y + 12.4, -20], tgt: [-1100, 50, 180] },
   rooftopFire: { pos: [330, 40, 160], tgt: [720, 100, 0] },
   water: { pos: [470, 2.3, 40], tgt: [390, 14, -26] },
   lawn: { pos: [175, 24, 55], tgt: [225, 8, -22] }
@@ -1543,8 +1543,8 @@ controls.addEventListener('start', () => { if (camMode !== 'free') { camMode = '
 
 // ---------- hotspots + info card ----------
 const SPOTS = [
-  { id: 'arc', pos: new V3(-40, 30, -128), label: 'Bending Arc', kicker: 'Aerial sculpture · Janet Echelman', text: 'A 424-foot net of three parasol-like lobes that floats about 72 feet above the park and reshapes itself with the wind. At night it glows magenta and violet. It was taken down for repair after the 2024 hurricanes; this shows it as installed in 2020. Tap the net to send light across it.', cam: 'arc' },
-  { id: 'head', pos: new V3(393, DECK_Y + 30, -24), label: 'Pierhead', kicker: 'Rogers Partners · 2020', text: 'Five levels of tapering concrete cantilevers hold Teak restaurant and, on the roof, the Pier Teaki bar under a huge perforated steel canopy. Its soffit sweeps down to level four, and the building is turned slightly to face the downtown skyline.', cam: 'rooftop' },
+  { id: 'arc', pos: new V3(-140, 30, -30), label: 'Bending Arc', kicker: 'Aerial sculpture · Janet Echelman', text: 'A 424-foot net of three parasol-like lobes that floats about 72 feet above the pier approach and reshapes itself with the wind. At night it glows magenta and violet. It was taken down for repair after the 2024 hurricanes; this shows it as installed in 2020. Tap the net to send light across it.', cam: 'arc' },
+  { id: 'head', pos: new V3(393, DECK_Y + 30, -24), label: 'Pierhead', kicker: 'Rogers Partners · 2020', text: 'Shops and a gift shop at deck level, Teak restaurant above, and the Pier Teaki tiki bar on the roof under a perforated steel canopy. The building is turned slightly to face the downtown skyline. The roof here is an approximation of the real one.', cam: 'rooftop' },
   { id: 'lawn', pos: new V3(225, DECK_Y + 11, -20), label: 'Tilted Lawn', kicker: 'Mid-pier', text: 'A triangular lawn about 10,000 square feet that slopes upward into a viewing platform aimed at the Pierhead. The walkway passes through a shaded grotto underneath.', cam: 'lawn' },
   { id: 'fish', pos: new V3(422, 8, -12), label: 'Fishing Deck', kicker: 'End of the pier', text: 'The fishing deck steps down toward the water and rests on four caissons saved from the old inverted-pyramid pier.', cam: 'water' },
   { id: 'beach', pos: new V3(-52, 6, -205), label: 'Spa Beach', kicker: 'Pier District', text: 'A swimming beach beside the pier approach, sheltered by a rock breakwater that protects swimmers and holds the sand in place.', cam: 'arc' },
