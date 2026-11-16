@@ -1,0 +1,82 @@
+/* WD Morgan Client Portal — admin */
+.wdmcp-admin { max-width: 1240px; }
+.wdmcp-admin__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.wdmcp-admin__head h1 { margin-right: 4px; }
+.wdmcp-admin .page-title-action { top: 0; }
+.wdmcp-panel { background: #fff; border: 1px solid #dcdfe6; border-radius: 10px; padding: 18px 20px; margin: 0 0 18px; box-shadow: 0 1px 2px rgba(0,0,0,.03); }
+.wdmcp-panel h2 { margin: 0 0 12px; font-size: 15px; }
+.wdmcp-panel h3 { margin: 18px 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: #646970; }
+.wdmcp-panel .form-table th { width: 200px; }
+.wdmcp-narrow { max-width: 620px; }
+.wdmcp-dim { color: #8c8f94; }
+.wdmcp-danger { color: #b32d2e !important; }
+.wdmcp-yes { color: #007a4d; font-weight: 600; }
+
+.wdmcp-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 8px 0 18px; max-width: 760px; }
+.wdmcp-stat { background: #fff; border: 1px solid #dcdfe6; border-radius: 10px; padding: 14px 16px; }
+.wdmcp-stat span { display: block; color: #646970; font-size: 12px; }
+.wdmcp-stat strong { font-size: 26px; line-height: 1.3; }
+.wdmcp-stat.is-hot { border-color: #213c7a; box-shadow: inset 3px 0 0 #213c7a; }
+
+.wdmcp-search-form { display: flex; gap: 6px; margin-bottom: 12px; }
+.wdmcp-search-form input { width: 320px; }
+
+.wdmcp-table { border-radius: 10px; overflow: hidden; }
+.wdmcp-table td, .wdmcp-table th { vertical-align: middle; padding: 10px 12px; }
+.wdmcp-client-link { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.wdmcp-client-link img { border-radius: 50%; }
+.wdmcp-client-link small { color: #646970; }
+.wdmcp-badge { display: inline-block; min-width: 22px; text-align: center; padding: 1px 8px; border-radius: 99px; background: #f0f0f1; font-weight: 600; }
+.wdmcp-badge.is-hot { background: #213c7a; color: #fff; }
+.wdmcp-empty-admin { text-align: center; padding: 48px 20px; }
+.wdmcp-empty-admin h2 { font-size: 20px; }
+
+.wdmcp-crumb { margin: 12px 0 4px; }
+.wdmcp-crumb a { text-decoration: none; }
+.wdmcp-client-head { display: flex; align-items: center; gap: 16px; margin: 6px 0 18px; flex-wrap: wrap; }
+.wdmcp-client-head img { border-radius: 50%; }
+.wdmcp-client-head h1 { padding: 0; margin: 0; }
+.wdmcp-client-head p { margin: 2px 0 0; color: #646970; }
+.wdmcp-client-head__actions { margin-left: auto; display: flex; gap: 8px; }
+
+.wdmcp-cols { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 18px; align-items: start; }
+@media (max-width: 1100px) { .wdmcp-cols { grid-template-columns: 1fr; } }
+
+.wdmcp-files-table tr.is-new td:first-child { box-shadow: inset 3px 0 0 #213c7a; }
+.wdmcp-files-table .wdmcp-note { color: #50575e; font-style: italic; }
+.wdmcp-actions { white-space: nowrap; text-align: right; }
+.wdmcp-actions form { display: inline; margin-left: 8px; }
+.wdmcp-status-select { min-width: 120px; border-radius: 99px !important; font-weight: 600; }
+.wdmcp-status-select.is-received { background-color: #eef2fa; color: #213c7a; border-color: #c9d4ea; }
+.wdmcp-status-select.is-in_review { background-color: #fffaeb; color: #b54708; border-color: #fedf89; }
+.wdmcp-status-select.is-done { background-color: #e6f9f1; color: #067647; border-color: #a6e9cc; }
+
+.wdmcp-dropfield { display: block; position: relative; border: 2px dashed #c3c4c7; border-radius: 10px; padding: 22px; text-align: center; background: #f6f7f7; cursor: pointer; transition: border-color .15s, background .15s; }
+.wdmcp-dropfield:hover, .wdmcp-dropfield.is-over { border-color: #213c7a; background: #eef2fa; }
+.wdmcp-dropfield input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.wdmcp-dropfield span { font-weight: 600; color: #213c7a; }
+.wdmcp-inline { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: space-between; }
+
+.wdmcp-req-form, .wdmcp-stack { display: grid; gap: 10px; margin-bottom: 8px; }
+.wdmcp-stack label { display: grid; gap: 4px; font-weight: 600; }
+.wdmcp-stack .wdmcp-check-row { display: flex; font-weight: 400; gap: 8px; align-items: center; }
+.wdmcp-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.wdmcp-req-admin { margin: 14px 0 0; border-top: 1px solid #f0f0f1; }
+.wdmcp-req-admin li { display: grid; gap: 4px; padding: 10px 0; border-bottom: 1px solid #f0f0f1; margin: 0; }
+.wdmcp-req-admin li.is-done strong { text-decoration: line-through; color: #8c8f94; }
+.wdmcp-req-admin form { display: flex; gap: 12px; }
+.wdmcp-status { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 99px; margin-left: 6px; background: #f0f0f1; }
+.wdmcp-status--open { background: #fffaeb; color: #b54708; }
+.wdmcp-status--submitted { background: #eef2fa; color: #213c7a; }
+.wdmcp-status--done { background: #e6f9f1; color: #067647; }
+
+.wdmcp-activity { margin: 0; }
+.wdmcp-activity li { padding: 6px 0; border-bottom: 1px solid #f6f7f7; margin: 0; }
+
+.wdmcp-logo-field { display: flex; align-items: center; gap: 12px; }
+.wdmcp-logo-field img { max-height: 48px; max-width: 200px; padding: 6px; border: 1px solid #dcdfe6; border-radius: 6px; background: #fff; }
+.wdmcp-colors { display: flex; gap: 24px; }
+
+.wdmcp-widget ul { margin: 0; }
+.wdmcp-widget li { padding: 6px 0; border-bottom: 1px solid #f0f0f1; margin: 0; }
+.wdmcp-widget__hot { background: #eef2fa; color: #213c7a; font-weight: 600; padding: 8px 10px; border-radius: 6px; }
